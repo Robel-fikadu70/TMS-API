@@ -1,0 +1,28 @@
+##Ignore .NET build artifacts
+bin/
+obj/
+
+##Ignore user-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+
+##Ignore IDE files
+.idea/
+*.iml
+
+##Ignore secrets and environment configs (unless you explicitly want them)
+appsettings.Development.json
+*.pfx
+*.key
+
+##Ignore debug logs
+*.log
+logs/
+
+##Ignore OS files
+.DS_Store
+Thumbs.db
