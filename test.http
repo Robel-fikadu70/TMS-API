@@ -1,0 +1,6 @@
+### Test 1: Anonymous Request (Should return 401 Unauthorized)
+GET http://localhost:5237/api/assessments/results
+
+### Test 2: Authenticated Request (Should return 200 OK)
+GET http://localhost:5237/api/assessments/results
+X-Training-User: Student123
