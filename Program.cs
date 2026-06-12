@@ -94,22 +94,25 @@ using Microsoft.Extensions.DependencyInjection; // Required for IServiceScopeFac
 var builder = WebApplication.CreateBuilder(args);
 
 // --- EXERCISE 2 ---
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler(options => { });
 
-// A. Enable Scope Validation (This forces the app to crash if lifetimes clash)
+builder.Services.AddSingleton<EnrollmentWorker>();
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+
+// 2. Add Host Validation (This is the "Safety Catch")
 builder.Host.UseDefaultServiceProvider(options =>
 {
     options.ValidateScopes = true;
     options.ValidateOnBuild = true;
 });
 
-builder.Services.AddSingleton<EnrollmentWorker>();
-builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
-
-
 builder
     .Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 builder.Services.AddAuthorization();
+
+
 
 var app = builder.Build();
 

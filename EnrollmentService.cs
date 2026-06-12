@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+
+// --- The data shape ---
+public record EnrollmentRecord(string Id, string StudentId, string CourseCode, DateTime EnrolledAt);
+
 // --- The contract ---
 public interface IEnrollmentService
 {
@@ -23,12 +28,10 @@ public class EnrollmentService : IEnrollmentService
         var id = Guid.NewGuid().ToString("N")[..8];
         var record = new EnrollmentRecord(id, studentId, courseCode, DateTime.UtcNow);
         _store[id] = record;
-        _logger.LogInformation(
-            "Enrolled {StudentId} in {CourseCode} record {EnrollmentId}",
-            studentId,
-            courseCode,
-            id
-        );
+        
+        _logger.LogInformation("Enrolled {StudentId} in {CourseCode} record {EnrollmentId}", 
+            studentId, courseCode, id);
+            
         return Task.FromResult(record);
     }
 
