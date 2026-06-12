@@ -112,7 +112,11 @@ builder
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 builder.Services.AddAuthorization();
 
-
+builder
+    .Services.AddOptions<PaymentOptions>()
+    .BindConfiguration("Payments")
+    .ValidateDataAnnotations()
+    .ValidateOnStart(); // Forces check at startup
 
 var app = builder.Build();
 
