@@ -41,35 +41,36 @@
 // app.Run();
 
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register Services
+// --- SERVICES ---
 builder
     .Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 builder.Services.AddAuthorization();
 
+// FIX: Add ProblemDetails to satisfy the ExceptionHandler "slot"
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler(options => { });
+
 var app = builder.Build();
 
-// 1. Custom Logging Middleware (Outermost)
-// Must be first to wrap everything and add headers before any processing
+// --- MIDDLEWARE PIPELINE (Order is critical for Exercise 1B) ---
+
+// 1. Custom Logging (Outer wrapper)
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-// 2. Exception Handler (Early to catch errors from logging or routing)
+// 2. Exception Handler (Must be early to catch errors from below)
 app.UseExceptionHandler();
 
-// 3. Routing
+// 3. The rest of the security/routing stack
+app.UseHttpsRedirection();
 app.UseRouting();
-
-// 4. Authentication
 app.UseAuthentication();
-
-// 5. Authorization
 app.UseAuthorization();
 
-// 6. Endpoints
+// 4. Endpoints
 app.MapGet(
         "/api/assessments/results",
         () =>
