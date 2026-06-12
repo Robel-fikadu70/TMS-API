@@ -87,4 +87,6 @@ public class EnrollmentService : IEnrollmentService
         }
         return removed;
     }
+
+    public class TmsDatabaseException(string message) : Exception(message);
 } // <--- This closing brace must be at the very end of the file
