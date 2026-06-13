@@ -16,7 +16,7 @@ public interface IEnrollmentService
 // 3. THE IMPLEMENTATION
 public class EnrollmentService : IEnrollmentService
 {
-    private readonly Dictionary<string, EnrollmentRecord> _store = new();
+    private static readonly Dictionary<string, EnrollmentRecord> _store = new();
     private readonly ILogger<EnrollmentService> _logger;
 
     public EnrollmentService(ILogger<EnrollmentService> logger)
@@ -87,6 +87,6 @@ public class EnrollmentService : IEnrollmentService
         }
         return removed;
     }
-
-    public class TmsDatabaseException(string message) : Exception(message);
 } // <--- This closing brace must be at the very end of the file
+
+public class TmsDatabaseException(string message) : Exception(message);

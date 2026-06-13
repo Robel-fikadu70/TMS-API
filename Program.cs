@@ -7,10 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. SERVICES (BUILDER SECTION) ---
 
-builder.Services.AddControllers(); // Required for Exercise 5
 builder.Services.AddProblemDetails(); // Required for Exercise 6
-builder.Services.AddExceptionHandler(options => { }); // Required to prevent startup crash
 builder.Services.AddOpenApi(); // Required for Exercise 7
+builder.Services.AddControllers(); // Required for Exercise 5
+builder.Services.AddExceptionHandler(options => { }); // Required to prevent startup crash
 
 // Exercise 2: Services & DI Validation
 builder.Services.AddSingleton<EnrollmentWorker>();
@@ -44,7 +44,7 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 // 2. Exception handling (Session 3 / Exercise 6)
 app.UseExceptionHandler();
-app.UseStatusCodePages(); // Turns 404s into JSON ProblemDetails
+app.UseStatusCodePages(); //( Exercise 6 TODO 3) Turns 404s into JSON ProblemDetails
 
 app.UseHttpsRedirection();
 app.UseRouting();
