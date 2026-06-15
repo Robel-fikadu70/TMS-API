@@ -15,6 +15,8 @@ builder.Services.AddExceptionHandler(options => { }); // Required to prevent sta
 // Exercise 2: Services & DI Validation
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<IStudentService, StudentService>();
+builder.Services.AddScoped<ICourseService, CourseService>();
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
