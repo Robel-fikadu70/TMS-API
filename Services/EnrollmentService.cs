@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 
-// 1. THE DATA SHAPE (Lives at the top level)
 public record EnrollmentRecord(string Id, string StudentId, string CourseCode, DateTime EnrolledAt);
 
-// 2. THE CONTRACT (Lives at the top level)
 public interface IEnrollmentService
 {
     Task<EnrollmentRecord> EnrollAsync(string studentId, string courseCode);
@@ -13,10 +11,9 @@ public interface IEnrollmentService
     Task<bool> DeleteAsync(string id);
 }
 
-// 3. THE IMPLEMENTATION
 public class EnrollmentService : IEnrollmentService
 {
-    private readonly Dictionary<string, EnrollmentRecord> _store = new();
+    public static readonly Dictionary<string, EnrollmentRecord> _store = new();
     private readonly ILogger<EnrollmentService> _logger;
 
     public EnrollmentService(ILogger<EnrollmentService> logger)
@@ -24,11 +21,19 @@ public class EnrollmentService : IEnrollmentService
         _logger = logger;
     }
 
-    // --- ALL METHODS MUST BE INSIDE THESE CLASS BRACES ---
-
     public async Task<EnrollmentRecord> EnrollAsync(string studentId, string courseCode)
     {
-        // Exercise 4: Duplicate check with Warning
+        // student exists
+        if (!StudentService._store.ContainsKey(studentId))
+        {
+            throw new ArgumentException($"Student {studentId} does not exist.");
+        }
+
+        // course exists
+        if (!CourseService._store.ContainsKey(courseCode))
+        {
+            throw new ArgumentException($"Course {courseCode} does not exist.");
+        }
         var existing = _store.Values.FirstOrDefault(e =>
             e.StudentId == studentId && e.CourseCode == courseCode
         );
@@ -43,10 +48,23 @@ public class EnrollmentService : IEnrollmentService
             );
             return existing;
         }
+        // capacity check
+        var course = CourseService._store[courseCode];
+
+        if (course.EnrolledCount >= course.Capacity)
+        {
+            throw new ArgumentException($"Course {courseCode} is full.");
+        }
 
         var id = Guid.NewGuid().ToString("N")[..8];
         var record = new EnrollmentRecord(id, studentId, courseCode, DateTime.UtcNow);
         _store[id] = record;
+
+        // increment enrolled count
+        CourseService._store[courseCode] = course with
+        {
+            EnrolledCount = course.EnrolledCount + 1,
+        };
 
         _logger.LogInformation(
             "Enrolled {StudentId} in {CourseCode} record {EnrollmentId}",
@@ -62,7 +80,6 @@ public class EnrollmentService : IEnrollmentService
     {
         if (!_store.TryGetValue(id, out var record))
         {
-            // Exercise 4: Structured Warning
             _logger.LogWarning("Enrollment {EnrollmentId} not found", id);
             return null;
         }
@@ -76,17 +93,27 @@ public class EnrollmentService : IEnrollmentService
 
     public async Task<bool> DeleteAsync(string id)
     {
-        var removed = _store.Remove(id);
-        if (removed)
-        {
-            _logger.LogInformation("Deleted enrollment {EnrollmentId}", id);
-        }
-        else
+        if (!_store.TryGetValue(id, out var enrollment))
         {
             _logger.LogWarning("Delete failed enrollment {EnrollmentId} not found", id);
-        }
-        return removed;
-    }
 
-    public class TmsDatabaseException(string message) : Exception(message);
-} // <--- This closing brace must be at the very end of the file
+            return false;
+        }
+
+        _store.Remove(id);
+
+        if (CourseService._store.TryGetValue(enrollment.CourseCode, out var course))
+        {
+            CourseService._store[enrollment.CourseCode] = course with
+            {
+                EnrolledCount = course.EnrolledCount - 1,
+            };
+        }
+
+        _logger.LogInformation("Deleted enrollment {EnrollmentId}", id);
+
+        return true;
+    }
+}
+
+public class TmsDatabaseException(string message) : Exception(message);

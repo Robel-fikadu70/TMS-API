@@ -4,3 +4,9 @@ GET http://localhost:5237/api/assessments/results
 ### Test 2: Authenticated Request (Should return 200 OK)
 GET http://localhost:5237/api/assessments/results
 X-Training-User: Student123
+
+### 1. GET all (empty list)
+GET http://localhost:5000/api/enrollments
+# Expected: 200 with []
+
+
