@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Scalar.AspNetCore;
+using TmsApi.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,11 +14,16 @@ builder.Services.AddOpenApi(); // Required for Exercise 7
 builder.Services.AddControllers(); // Required for Exercise 5
 builder.Services.AddExceptionHandler(options => { }); // Required to prevent startup crash
 
-// Exercise 2: Services & DI Validation
+// Exercise 2 Services & DI Validation
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
+
+// Register TmsDbContext scoped for incoming HTTP requests
+builder.Services.AddDbContext<TmsDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("TmsDatabase"))
+);
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
