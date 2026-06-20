@@ -24,6 +24,17 @@ public class StudentsController : ControllerBase
         return Ok(students); // Returns 200 OK with list of StudentRecord DTOs
     }
 
+    //GET /api/students/paged
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPagedStudents(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20
+    )
+    {
+        var pagedResult = await _studentService.GetPagedStudentsAsync(pageNumber, pageSize);
+        return Ok(pagedResult);
+    }
+
     // GET /api/students/{id}
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)

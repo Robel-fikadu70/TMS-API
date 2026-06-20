@@ -13,6 +13,7 @@ public interface IStudentService
     Task<StudentRecord?> GetByIdAsync(int id);
     Task<IReadOnlyList<StudentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
+    Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(int pageNumber, int pageSize);
 }
 
 public class StudentService : IStudentService
@@ -76,6 +77,39 @@ public class StudentService : IStudentService
         }
 
         return MapToStudentRecord(studentEntity);
+    }
+
+    public async Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(
+        int pageNumber,
+        int pageSize
+    )
+    {
+        if (pageNumber < 1)
+            pageNumber = 1;
+        if (pageSize < 1 || pageSize > 100)
+            pageSize = 20;
+
+        int recordsToSkip = (pageNumber - 1) * pageSize;
+
+        // Get total count first for pagination metadata
+        var totalStudents = await _context.Students.CountAsync();
+
+        // Perform the paged query, mapping to StudentRecord DTOs
+        var pagedStudentEntities = await _context
+            .Students.OrderBy(s => s.Name)
+            .Skip(recordsToSkip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var pagedStudentRecords = pagedStudentEntities.Select(MapToStudentRecord).ToList();
+
+        return new PagedResult<StudentRecord>(
+            PageNumber: pageNumber,
+            PageSize: pageSize,
+            TotalCount: totalStudents,
+            TotalPages: (int)Math.Ceiling(totalStudents / (double)pageSize),
+            Data: pagedStudentRecords.AsReadOnly()
+        );
     }
 
     public async Task<IReadOnlyList<StudentRecord>> GetAllAsync()
