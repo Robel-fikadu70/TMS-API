@@ -14,8 +14,9 @@ obj/
 .idea/
 *.iml
 
-##Ignore secrets and environment configs (unless you explicitly want them)
+##Ignore secrets and environment configs 
 appsettings.Development.json
+appsettings.json
 *.pfx
 *.key
 
@@ -27,3 +28,4 @@ logs/
 .DS_Store
 Thumbs.db
 dotnet-tools.json
+appsettings.json
