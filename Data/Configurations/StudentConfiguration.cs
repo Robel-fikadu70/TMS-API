@@ -1,3 +1,4 @@
+// TmsApi/Data/Configurations/StudentConfiguration.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TmsApi.Entities;
@@ -10,7 +11,6 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
     {
         builder.HasKey(s => s.Id);
 
-        //properties
         builder.Property(s => s.RegistrationNumber).IsRequired().HasMaxLength(20);
 
         builder.Property(s => s.Name).IsRequired().HasMaxLength(100);
@@ -19,18 +19,25 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
 
         builder.Property(s => s.IsActive).IsRequired();
 
-        // Relationships
-        // Student has many Enrollments
+        builder.HasIndex(s => s.RegistrationNumber).IsUnique(); // Make RegistrationNumber unique.
+
+        // Relationships:
+
+        // Student (One) to Enrollment (Many)
+        // If a Student is deleted, prevent deletion if there are associated Enrollments.
         builder
             .HasMany(s => s.Enrollments)
             .WithOne(e => e.Student)
             .HasForeignKey(e => e.StudentId)
-            .OnDelete(DeleteBehavior.Restrict); // Restrict deletion to prevent orphaned enrollments
+            .OnDelete(DeleteBehavior.Restrict);
 
-        // Student has many Certificates
-        // builder.HasMany(s => s.Certificates)
-        //        .WithOne(c => c.Student)
-        //        .HasForeignKey(c => c.StudentId)
-        //        .OnDelete(DeleteBehavior.Restrict); // Restrict deletion
+        // Student (One) to Certificate (Many)
+        // If a Student is deleted, prevent deletion if there are issued Certificates.
+        // This ensures the validity of issued certificates.
+        builder
+            .HasMany(s => s.Certificates)
+            .WithOne(c => c.Student)
+            .HasForeignKey(c => c.StudentId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
