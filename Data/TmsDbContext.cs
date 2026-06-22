@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TmsApi.Data.Configurations;
 using TmsApi.Entities;
 
 namespace TmsApi.Data;
@@ -10,4 +11,14 @@ public class TmsDbContext(DbContextOptions<TmsDbContext> options) : DbContext(op
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<Assessment> Assessments => Set<Assessment>();
     public DbSet<Certificate> Certificates => Set<Certificate>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // This line tells EF Core to find and apply all configurations
+        // that implement IEntityTypeConfiguration in the same assembly as TmsDbContext.
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TmsDbContext).Assembly);
+
+        // Call the base method
+        base.OnModelCreating(modelBuilder);
+    }
 }
