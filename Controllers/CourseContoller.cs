@@ -61,6 +61,14 @@ public class CoursesController : ControllerBase
         var deleted = await _courseService.DeleteAsync(code);
         return deleted ? NoContent() : NotFound(); // Returns 204 No Content or 404 Not Found
     }
+
+    // GET /api/courses/top-by-enrollment
+    [HttpGet("top-by-enrollment")]
+    public async Task<IActionResult> GetTopCoursesByEnrollment([FromQuery] int topCount = 5)
+    {
+        var topCourses = await _courseService.GetTopCoursesByEnrollmentAsync(topCount);
+        return Ok(topCourses);
+    }
 }
 
 // Request Model

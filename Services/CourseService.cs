@@ -13,6 +13,8 @@ public interface ICourseService
     Task<CourseRecord?> GetByCodeAsync(string code);
     Task<IReadOnlyList<CourseRecord>> GetAllAsync();
     Task<bool> DeleteAsync(string code);
+
+    Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
 }
 
 public class CourseService : ICourseService
@@ -166,5 +168,26 @@ public class CourseService : ICourseService
 
         _logger.LogInformation("Deleted course {CourseCode}", code);
         return true;
+    }
+
+    public async Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(
+        int topCount
+    )
+    {
+        if (topCount < 1)
+            topCount = 5;
+        var topCourses = await _context
+            .Courses.Include(c => c.Enrollments)
+            .OrderByDescending(x => x.Enrollments.Count)
+            .Select(c => new TopCourseSummaryRecord(
+                CourseCode: c.Code,
+                CourseTitle: c.Title,
+                EnrollmentCount: c.Enrollments.Count
+            ))
+            //.OrderByDescending(x => x.EnrollmentCount)
+            .Take(topCount)
+            .ToListAsync();
+
+        return topCourses.AsReadOnly();
     }
 }
