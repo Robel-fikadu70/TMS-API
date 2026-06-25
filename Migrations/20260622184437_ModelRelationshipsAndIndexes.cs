@@ -12,33 +12,36 @@ namespace TmsApi.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Certificates_Courses_CourseId",
-                table: "Certificates");
+                table: "Certificates"
+            );
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Certificates_Students_StudentId",
-                table: "Certificates");
+                table: "Certificates"
+            );
 
-            migrationBuilder.DropIndex(
-                name: "IX_Enrollments_StudentId",
-                table: "Enrollments");
+            migrationBuilder.DropIndex(name: "IX_Enrollments_StudentId", table: "Enrollments");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Students_RegistrationNumber",
                 table: "Students",
                 column: "RegistrationNumber",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_StudentId_CourseId",
                 table: "Enrollments",
                 columns: new[] { "StudentId", "CourseId" },
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Courses_Code",
                 table: "Courses",
                 column: "Code",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Certificates_Courses_CourseId",
@@ -46,7 +49,8 @@ namespace TmsApi.Migrations
                 column: "CourseId",
                 principalTable: "Courses",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Restrict
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Certificates_Students_StudentId",
@@ -54,7 +58,8 @@ namespace TmsApi.Migrations
                 column: "StudentId",
                 principalTable: "Students",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Restrict
+            );
         }
 
         /// <inheritdoc />
@@ -62,28 +67,28 @@ namespace TmsApi.Migrations
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Certificates_Courses_CourseId",
-                table: "Certificates");
+                table: "Certificates"
+            );
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Certificates_Students_StudentId",
-                table: "Certificates");
+                table: "Certificates"
+            );
 
-            migrationBuilder.DropIndex(
-                name: "IX_Students_RegistrationNumber",
-                table: "Students");
+            migrationBuilder.DropIndex(name: "IX_Students_RegistrationNumber", table: "Students");
 
             migrationBuilder.DropIndex(
                 name: "IX_Enrollments_StudentId_CourseId",
-                table: "Enrollments");
+                table: "Enrollments"
+            );
 
-            migrationBuilder.DropIndex(
-                name: "IX_Courses_Code",
-                table: "Courses");
+            migrationBuilder.DropIndex(name: "IX_Courses_Code", table: "Courses");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_StudentId",
                 table: "Enrollments",
-                column: "StudentId");
+                column: "StudentId"
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Certificates_Courses_CourseId",
@@ -91,7 +96,8 @@ namespace TmsApi.Migrations
                 column: "CourseId",
                 principalTable: "Courses",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Cascade
+            );
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Certificates_Students_StudentId",
@@ -99,7 +105,8 @@ namespace TmsApi.Migrations
                 column: "StudentId",
                 principalTable: "Students",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Cascade
+            );
         }
     }
 }

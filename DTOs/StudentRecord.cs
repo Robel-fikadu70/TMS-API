@@ -5,5 +5,8 @@ public record StudentRecord(
     string RegistrationNumber,
     string Name,
     decimal GPA,
-    bool IsActive
+    bool IsActive,
+    uint Version
 );
+
+public record UpdateStudentRequest(string Name, decimal GPA, uint Version);

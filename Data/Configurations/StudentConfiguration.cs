@@ -21,6 +21,8 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
 
         builder.HasIndex(s => s.RegistrationNumber).IsUnique(); // Make RegistrationNumber unique.
 
+        builder.Property(s => s.Version).IsRowVersion(); // This tells EF Core to use this for concurrency checks
+
         builder.Property<DateTime>("LastUpdated");
 
         // Relationships:

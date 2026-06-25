@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TmsApi.DTOs;
 using TmsApi.Services;
 
@@ -51,6 +52,30 @@ public class StudentsController : ControllerBase
 
         // Returns 201 Created with Location header and the created StudentRecord DTO
         return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
+    }
+
+    [HttpPut("students/{id}")]
+    public async Task<IActionResult> TestConcurrency(
+        int id,
+        [FromQuery] string name,
+        [FromQuery] uint version
+    )
+    {
+        try
+        {
+            var updatedStudent = await _studentService.UpdateNameAsync(id, name, version);
+            return Ok(updatedStudent);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(
+                new
+                {
+                    error = "Conflict",
+                    message = "Someone else updated this student while you were editing. Please refresh.",
+                }
+            );
+        }
     }
 
     // DELETE /api/students/{id}

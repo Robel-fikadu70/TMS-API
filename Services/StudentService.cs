@@ -14,6 +14,7 @@ public interface IStudentService
     Task<IReadOnlyList<StudentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
     Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(int pageNumber, int pageSize);
+    Task<StudentRecord?> UpdateNameAsync(int id, string newName, uint originalVersion);
 }
 
 public class StudentService : IStudentService
@@ -35,7 +36,8 @@ public class StudentService : IStudentService
             RegistrationNumber: student.RegistrationNumber,
             Name: student.Name,
             GPA: student.GPA,
-            IsActive: student.IsActive
+            IsActive: student.IsActive,
+            Version: student.Version
         );
     }
 
@@ -122,6 +124,32 @@ public class StudentService : IStudentService
         var studentRecords = studentEntities.Select(MapToStudentRecord).ToList();
 
         return studentRecords.AsReadOnly(); // Return as IReadOnlyList for immutability
+    }
+
+    public async Task<StudentRecord?> UpdateNameAsync(int id, string newName, uint originalVersion)
+    {
+        // 1. Get the student from the database
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        if (student == null)
+            return null;
+
+        //
+        _context.Entry(student).Property(s => s.Version).OriginalValue = originalVersion;
+
+        // 3. Apply the name change
+        student.Name = newName;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            return MapToStudentRecord(student);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // This happens if the 'xmin' in the DB changed while we were 'holding' originalVersion
+            _logger.LogWarning("Concurrency conflict detected for student {Id}", id);
+            throw;
+        }
     }
 
     public async Task<bool> DeleteAsync(int id) // Changed to int id
