@@ -21,6 +21,8 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
 
         builder.HasIndex(s => s.RegistrationNumber).IsUnique(); // Make RegistrationNumber unique.
 
+        builder.Property<DateTime>("LastUpdated");
+
         // Relationships:
 
         // Student (One) to Enrollment (Many)

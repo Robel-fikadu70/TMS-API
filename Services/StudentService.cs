@@ -54,6 +54,9 @@ public class StudentService : IStudentService
         };
 
         _context.Students.Add(studentEntity);
+
+        // Access the "Shadow" property through the Entry API
+        _context.Entry(studentEntity).Property("LastUpdated").CurrentValue = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         _logger.LogInformation(
