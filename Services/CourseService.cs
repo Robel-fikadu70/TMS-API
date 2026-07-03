@@ -9,10 +9,12 @@ namespace TmsApi.Services;
 
 public interface ICourseService
 {
-    Task<CourseRecord> CreateAsync(string code, string title, int capacity);
+    Task<Course> CreateAsync(Course course, CancellationToken ct);
     Task<CourseRecord?> GetByCodeAsync(string code);
     Task<IReadOnlyList<CourseRecord>> GetAllAsync();
     Task<bool> DeleteAsync(string code);
+
+    Task<Course?> GetByIdAsync(int id, CancellationToken ct);
 
     Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
 }
@@ -42,42 +44,58 @@ public class CourseService : ICourseService
         );
     }
 
-    public async Task<CourseRecord> CreateAsync(string code, string title, int capacity)
+    // public async Task<CourseRecord> CreateAsync(string code, string title, int capacity)
+    // {
+    //     if (string.IsNullOrWhiteSpace(code))
+    //         throw new ArgumentException("Course code is required.", nameof(code));
+    //     if (string.IsNullOrWhiteSpace(title))
+    //         throw new ArgumentException("Course title is required.", nameof(title));
+    //     if (capacity <= 0)
+    //         throw new ArgumentException("Capacity must be greater than 0.", nameof(capacity));
+
+    //     // Check if a course with this code already exists in the database
+    //     var existingCourse = await _context.Courses.FirstOrDefaultAsync(c => c.Code == code);
+    //     if (existingCourse != null)
+    //     {
+    //         throw new ArgumentException($"Course {code} already exists.");
+    //     }
+
+    //     // Create a new Course entity
+    //     var courseEntity = new Course
+    //     {
+    //         Code = code.ToUpper(),
+    //         Title = title,
+    //         Capacity = capacity,
+    //         // Enrollments, Assessments, Certificates collections are initialized by default
+    //     };
+
+    //     _context.Courses.Add(courseEntity); // Stage for insertion
+    //     await _context.SaveChangesAsync(); // Commit to the database (Id is now populated)
+
+    //     _logger.LogInformation(
+    //         "Created course {CourseCode} with title {CourseTitle}",
+    //         courseEntity.Code,
+    //         courseEntity.Title
+    //     );
+
+    //     // Map the created entity to the DTO before returning (EnrolledCount is 0 for a new course)
+    //     return MapToCourseRecord(courseEntity);
+    // }
+
+    public async Task<Course> CreateAsync(Course course, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new ArgumentException("Course code is required.", nameof(code));
-        if (string.IsNullOrWhiteSpace(title))
-            throw new ArgumentException("Course title is required.", nameof(title));
-        if (capacity <= 0)
-            throw new ArgumentException("Capacity must be greater than 0.", nameof(capacity));
+        // TODO 2: Add course to context and SaveChangesAsync(ct)
+        _context.Courses.Add(course);
+        await _context.SaveChangesAsync(ct);
 
-        // Check if a course with this code already exists in the database
-        var existingCourse = await _context.Courses.FirstOrDefaultAsync(c => c.Code == code);
-        if (existingCourse != null)
-        {
-            throw new ArgumentException($"Course {code} already exists.");
-        }
+        _logger.LogInformation("Created course {CourseId} ({Code})", course.Id, course.Code);
+        return course;
+    }
 
-        // Create a new Course entity
-        var courseEntity = new Course
-        {
-            Code = code.ToUpper(),
-            Title = title,
-            Capacity = capacity,
-            // Enrollments, Assessments, Certificates collections are initialized by default
-        };
-
-        _context.Courses.Add(courseEntity); // Stage for insertion
-        await _context.SaveChangesAsync(); // Commit to the database (Id is now populated)
-
-        _logger.LogInformation(
-            "Created course {CourseCode} with title {CourseTitle}",
-            courseEntity.Code,
-            courseEntity.Title
-        );
-
-        // Map the created entity to the DTO before returning (EnrolledCount is 0 for a new course)
-        return MapToCourseRecord(courseEntity);
+    public async Task<Course?> GetByIdAsync(int id, CancellationToken ct)
+    {
+        // TODO 1: Use AsNoTracking() and return FirstOrDefaultAsync
+        return await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
     public async Task<CourseRecord?> GetByCodeAsync(string code)
