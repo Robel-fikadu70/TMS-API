@@ -10,9 +10,13 @@ namespace TmsApi.Services;
 public interface IStudentService
 {
     Task<StudentRecord> RegisterAsync(string name, decimal GPA);
-    Task<StudentRecord?> GetByIdAsync(int id);
+    Task<StudentRecord?> GetByIdAsync(int id, bool includeDeleted = false);
     Task<IReadOnlyList<StudentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
+    Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(int pageNumber, int pageSize);
+    Task<StudentRecord?> UpdateAsync(int id, UpdateStudentRequest request);
+    Task<bool> SoftDeleteAsync(int id);
+    Task<int> BulkArchiveEnrollmentsAsync(int yearThreshold);
 }
 
 public class StudentService : IStudentService
@@ -34,7 +38,8 @@ public class StudentService : IStudentService
             RegistrationNumber: student.RegistrationNumber,
             Name: student.Name,
             GPA: student.GPA,
-            IsActive: student.IsActive
+            IsActive: student.IsActive,
+            Version: student.Version
         );
     }
 
@@ -53,6 +58,9 @@ public class StudentService : IStudentService
         };
 
         _context.Students.Add(studentEntity);
+
+        // Access the "Shadow" property through the Entry API
+        _context.Entry(studentEntity).Property("LastUpdated").CurrentValue = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         _logger.LogInformation(
@@ -65,17 +73,48 @@ public class StudentService : IStudentService
         return MapToStudentRecord(studentEntity);
     }
 
-    public async Task<StudentRecord?> GetByIdAsync(int id)
+    public async Task<StudentRecord?> GetByIdAsync(int id, bool includeDeleted = false)
     {
-        var studentEntity = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        IQueryable<Student> query = _context.Students;
 
-        if (studentEntity == null)
-        {
-            _logger.LogWarning("Student with ID: {studentId} not found.", id);
-            return null;
-        }
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
 
-        return MapToStudentRecord(studentEntity);
+        var student = await query.FirstOrDefaultAsync(s => s.Id == id);
+        return student == null ? null : MapToStudentRecord(student);
+    }
+
+    public async Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(
+        int pageNumber,
+        int pageSize
+    )
+    {
+        if (pageNumber < 1)
+            pageNumber = 1;
+        if (pageSize < 1 || pageSize > 100)
+            pageSize = 20;
+
+        int recordsToSkip = (pageNumber - 1) * pageSize;
+
+        // Get total count first for pagination metadata
+        var totalStudents = await _context.Students.CountAsync();
+
+        // Perform the paged query, mapping to StudentRecord DTOs
+        var pagedStudentEntities = await _context
+            .Students.OrderBy(s => s.Name)
+            .Skip(recordsToSkip)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var pagedStudentRecords = pagedStudentEntities.Select(MapToStudentRecord).ToList();
+
+        return new PagedResult<StudentRecord>(
+            PageNumber: pageNumber,
+            PageSize: pageSize,
+            TotalCount: totalStudents,
+            TotalPages: (int)Math.Ceiling(totalStudents / (double)pageSize),
+            Data: pagedStudentRecords.AsReadOnly()
+        );
     }
 
     public async Task<IReadOnlyList<StudentRecord>> GetAllAsync()
@@ -85,6 +124,61 @@ public class StudentService : IStudentService
         var studentRecords = studentEntities.Select(MapToStudentRecord).ToList();
 
         return studentRecords.AsReadOnly(); // Return as IReadOnlyList for immutability
+    }
+
+    public async Task<StudentRecord?> UpdateAsync(int id, UpdateStudentRequest request)
+    {
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        if (student == null)
+            return null;
+
+        // Exercise 8: Set the original version to check for concurrency
+        _context.Entry(student).Property(s => s.Version).OriginalValue = request.Version;
+
+        // Update all editable fields
+        if (request.Name != null)
+            student.Name = request.Name;
+        if (request.GPA.HasValue)
+            student.GPA = request.GPA.Value;
+        if (request.IsActive.HasValue)
+            student.IsActive = request.IsActive.Value;
+
+        // Set Audit Shadow Property
+        _context.Entry(student).Property("LastUpdated").CurrentValue = DateTime.UtcNow;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+            return MapToStudentRecord(student);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("Concurrency conflict on Student {Id}", id);
+            throw; // Controller will catch this
+        }
+    }
+
+    public async Task<bool> SoftDeleteAsync(int id)
+    {
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        if (student == null)
+            return false;
+
+        student.IsDeleted = true;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<int> BulkArchiveEnrollmentsAsync(int yearThreshold)
+    {
+        // We want to archive everything where the EnrolledAt year is LESS than that.
+
+        int rowsAffected = await _context
+            .Enrollments.Where(e => e.EnrolledAt.Year < yearThreshold && !e.IsArchived)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(e => e.IsArchived, true));
+
+        _logger.LogInformation("Bulk archive completed. {Count} rows archived.", rowsAffected);
+        return rowsAffected;
     }
 
     public async Task<bool> DeleteAsync(int id) // Changed to int id

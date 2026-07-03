@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TmsApi.DTOs;
 using TmsApi.Services;
 
@@ -24,12 +25,23 @@ public class StudentsController : ControllerBase
         return Ok(students); // Returns 200 OK with list of StudentRecord DTOs
     }
 
+    //GET /api/students/paged
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPagedStudents(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20
+    )
+    {
+        var pagedResult = await _studentService.GetPagedStudentsAsync(pageNumber, pageSize);
+        return Ok(pagedResult);
+    }
+
     // GET /api/students/{id}
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> Get(int id, [FromQuery] bool adminMode = false)
     {
-        var record = await _studentService.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound(); // Returns 200 OK or 404 Not Found
+        var student = await _studentService.GetByIdAsync(id, adminMode);
+        return student == null ? NotFound() : Ok(student);
     }
 
     // POST /api/students
@@ -39,7 +51,36 @@ public class StudentsController : ControllerBase
         var record = await _studentService.RegisterAsync(request.name, request.GPA);
 
         // Returns 201 Created with Location header and the created StudentRecord DTO
-        return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
+        return CreatedAtAction(nameof(Get), new { id = record.Id }, record);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateStudentRequest request)
+    {
+        try
+        {
+            var result = await _studentService.UpdateAsync(id, request);
+            return result == null ? NotFound() : Ok(result);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { message = "Data was modified by another user. Please refresh." });
+        }
+    }
+
+    [HttpDelete("soft/{id}")]
+    public async Task<IActionResult> SoftDelete(int id)
+    {
+        var success = await _studentService.SoftDeleteAsync(id);
+        return success ? NoContent() : NotFound();
+    }
+
+    // Professional Bulk Endpoint
+    [HttpPatch("archive-old-enrollments/{year}")]
+    public async Task<IActionResult> Archive(int year)
+    {
+        var count = await _studentService.BulkArchiveEnrollmentsAsync(year);
+        return Ok(new { archivedCount = count });
     }
 
     // DELETE /api/students/{id}
