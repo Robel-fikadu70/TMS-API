@@ -7,16 +7,12 @@ using TmsApi.Services; // For IEnrollmentService
 namespace TmsApi.Controllers;
 
 [ApiController]
-[Route("api/enrollments")]
-public class EnrollmentsController : ControllerBase
+[Route("api/courses/{courseId:int}/enrollments")]
+public class EnrollmentsController(
+    ICourseService _courseService,
+    IEnrollmentService _enrollmentService
+) : ControllerBase
 {
-    private readonly IEnrollmentService _enrollmentService;
-
-    public EnrollmentsController(IEnrollmentService enrollmentService)
-    {
-        _enrollmentService = enrollmentService;
-    }
-
     // GET /api/enrollments
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -25,32 +21,41 @@ public class EnrollmentsController : ControllerBase
         return Ok(enrollments);
     }
 
-    // GET /api/enrollments/{id}
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id) // Changed id type to int
+    [HttpGet("{id:int}", Name = nameof(GetEnrollment))]
+    public async Task<IActionResult> GetEnrollment(int courseId, int id, CancellationToken ct)
     {
-        var record = await _enrollmentService.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound();
+        var enrollment = await _enrollmentService.GetByIdAsync(courseId, id, ct);
+        return enrollment is not null ? Ok(enrollment) : NotFound();
     }
 
-    // POST /api/enrollments
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateEnrollmentRequest request)
+    public async Task<IActionResult> EnrollStudent(
+        int courseId,
+        EnrollStudentRequest request,
+        CancellationToken ct
+    )
     {
-        try
+        // Rule 1: 404 before 409. Does the course exist?
+        var course = await _courseService.GetByIdAsync(courseId, ct);
+        if (course == null)
+            return NotFound();
+
+        // Rule 2: Check capacity
+        if (course.EnrollmentCount >= course.Capacity)
         {
-            var record = await _enrollmentService.EnrollAsync(
-                request.StudentId,
-                request.CourseCode
+            return Conflict(
+                new ProblemDetails
+                {
+                    Title = "Course is full",
+                    Detail =
+                        $"Course '{course.Title}' has reached its maximum capacity of {course.Capacity}.",
+                    Status = StatusCodes.Status409Conflict,
+                }
             );
-            // Returns 201 Created with Location header pointing to GetById
-            return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
         }
-        catch (ArgumentException ex)
-        {
-            // Catch specific validation exceptions for better error messages
-            return BadRequest(new { Message = ex.Message });
-        }
+
+        var result = await _enrollmentService.CreateAsync(courseId, request, ct);
+        return CreatedAtAction(nameof(GetEnrollment), new { courseId, id = result.Id }, result);
     }
 
     // DELETE /api/enrollments/{id}

@@ -1,22 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using TmsApi.Data;
-using TmsApi.DTOs; // For CourseRecord DTO
+using TmsApi.DTOs;
 using TmsApi.Services; // For ICourseService
 
 namespace TmsApi.Controllers;
 
 [ApiController]
 [Route("api/courses")]
-public class CoursesController : ControllerBase
+public class CoursesController(ICourseService _courseService) : ControllerBase
 {
-    private readonly ICourseService _courseService; // Correct variable name for consistency
-
-    // Constructor injection
-    public CoursesController(ICourseService courseService)
-    {
-        _courseService = courseService;
-    }
-
     // GET /api/courses
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -33,26 +24,56 @@ public class CoursesController : ControllerBase
         return record is not null ? Ok(record) : NotFound(); // Returns 200 OK or 404 Not Found
     }
 
-    // POST /api/courses
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateCourseRequest request)
+    [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
     {
-        try
-        {
-            var record = await _courseService.CreateAsync(
-                request.Code,
-                request.Title,
-                request.Capacity
-            );
-            // Returns 201 Created with Location header and the created CourseRecord DTO
-            return CreatedAtAction(nameof(GetByCode), new { code = record.Code }, record);
-        }
-        catch (ArgumentException ex)
-        {
-            // Catch specific validation exceptions for better error messages
-            return BadRequest(new { Message = ex.Message });
-        }
+        // TODO 3: Call service and return Ok or NotFound
+        var course = await _courseService.GetByIdAsync(id, ct);
+        return course is not null ? Ok(course) : NotFound();
     }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
+    {
+        // Check business rule BEFORE trying to save
+        if (await _courseService.CodeExistsAsync(request.Code, ct))
+        {
+            return Conflict(
+                new ProblemDetails
+                {
+                    Title = "Course code already exists",
+                    Detail = $"A course with code '{request.Code}' is already registered.",
+                    Status = StatusCodes.Status409Conflict,
+                }
+            );
+        }
+        // TODO 4: Call CreateAsync and return CreatedAtAction
+        var result = await _courseService.CreateAsync(request, ct);
+
+        // This pattern is required for the 'Location' header in the response
+        return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
+    }
+
+    // // POST /api/courses
+    // [HttpPost]
+    // public async Task<IActionResult> Create([FromBody] CreateCourseRequest request)
+    // {
+    //     try
+    //     {
+    //         var record = await _courseService.CreateAsync(
+    //             request.Code,
+    //             request.Title,
+    //             request.Capacity
+    //         );
+    //         // Returns 201 Created with Location header and the created CourseRecord DTO
+    //         return CreatedAtAction(nameof(GetByCode), new { code = record.Code }, record);
+    //     }
+    //     catch (ArgumentException ex)
+    //     {
+    //         // Catch specific validation exceptions for better error messages
+    //         return BadRequest(new { Message = ex.Message });
+    //     }
+    // }
 
     // DELETE /api/courses/{code}
     [HttpDelete("{code}")]
@@ -70,6 +91,3 @@ public class CoursesController : ControllerBase
         return Ok(topCourses);
     }
 }
-
-// Request Model
-public record CreateCourseRequest(string Code, string Title, int Capacity);
