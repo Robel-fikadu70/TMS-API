@@ -21,9 +21,13 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
 
         builder.HasIndex(s => s.RegistrationNumber).IsUnique(); // Make RegistrationNumber unique.
 
-        builder.Property(s => s.Version).IsRowVersion(); // This tells EF Core to use this for concurrency checks
+        builder.Property(s => s.Version).IsRowVersion(); //  Concurrency (Ex 8) This tells EF Core to use this for concurrency checks
 
-        builder.Property<DateTime>("LastUpdated");
+        builder.Property<DateTime>("LastUpdated"); //Shadow Property for Audit (Ex 8)
+
+        // Soft Delete Filter (Ex 9)
+        // This automatically hides deleted students from EVERY query
+        builder.HasQueryFilter(s => !s.IsDeleted);
 
         // Relationships:
 

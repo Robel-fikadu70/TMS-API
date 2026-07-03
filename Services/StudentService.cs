@@ -10,11 +10,13 @@ namespace TmsApi.Services;
 public interface IStudentService
 {
     Task<StudentRecord> RegisterAsync(string name, decimal GPA);
-    Task<StudentRecord?> GetByIdAsync(int id);
+    Task<StudentRecord?> GetByIdAsync(int id, bool includeDeleted = false);
     Task<IReadOnlyList<StudentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
     Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(int pageNumber, int pageSize);
-    Task<StudentRecord?> UpdateNameAsync(int id, string newName, uint originalVersion);
+    Task<StudentRecord?> UpdateAsync(int id, UpdateStudentRequest request);
+    Task<bool> SoftDeleteAsync(int id);
+    Task<int> BulkArchiveEnrollmentsAsync(int yearThreshold);
 }
 
 public class StudentService : IStudentService
@@ -71,17 +73,15 @@ public class StudentService : IStudentService
         return MapToStudentRecord(studentEntity);
     }
 
-    public async Task<StudentRecord?> GetByIdAsync(int id)
+    public async Task<StudentRecord?> GetByIdAsync(int id, bool includeDeleted = false)
     {
-        var studentEntity = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        IQueryable<Student> query = _context.Students;
 
-        if (studentEntity == null)
-        {
-            _logger.LogWarning("Student with ID: {studentId} not found.", id);
-            return null;
-        }
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
 
-        return MapToStudentRecord(studentEntity);
+        var student = await query.FirstOrDefaultAsync(s => s.Id == id);
+        return student == null ? null : MapToStudentRecord(student);
     }
 
     public async Task<PagedResult<StudentRecord>> GetPagedStudentsAsync(
@@ -126,18 +126,25 @@ public class StudentService : IStudentService
         return studentRecords.AsReadOnly(); // Return as IReadOnlyList for immutability
     }
 
-    public async Task<StudentRecord?> UpdateNameAsync(int id, string newName, uint originalVersion)
+    public async Task<StudentRecord?> UpdateAsync(int id, UpdateStudentRequest request)
     {
-        // 1. Get the student from the database
         var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
         if (student == null)
             return null;
 
-        //
-        _context.Entry(student).Property(s => s.Version).OriginalValue = originalVersion;
+        // Exercise 8: Set the original version to check for concurrency
+        _context.Entry(student).Property(s => s.Version).OriginalValue = request.Version;
 
-        // 3. Apply the name change
-        student.Name = newName;
+        // Update all editable fields
+        if (request.Name != null)
+            student.Name = request.Name;
+        if (request.GPA.HasValue)
+            student.GPA = request.GPA.Value;
+        if (request.IsActive.HasValue)
+            student.IsActive = request.IsActive.Value;
+
+        // Set Audit Shadow Property
+        _context.Entry(student).Property("LastUpdated").CurrentValue = DateTime.UtcNow;
 
         try
         {
@@ -146,10 +153,32 @@ public class StudentService : IStudentService
         }
         catch (DbUpdateConcurrencyException)
         {
-            // This happens if the 'xmin' in the DB changed while we were 'holding' originalVersion
-            _logger.LogWarning("Concurrency conflict detected for student {Id}", id);
-            throw;
+            _logger.LogWarning("Concurrency conflict on Student {Id}", id);
+            throw; // Controller will catch this
         }
+    }
+
+    public async Task<bool> SoftDeleteAsync(int id)
+    {
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id);
+        if (student == null)
+            return false;
+
+        student.IsDeleted = true;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<int> BulkArchiveEnrollmentsAsync(int yearThreshold)
+    {
+        // We want to archive everything where the EnrolledAt year is LESS than that.
+
+        int rowsAffected = await _context
+            .Enrollments.Where(e => e.EnrolledAt.Year < yearThreshold && !e.IsArchived)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(e => e.IsArchived, true));
+
+        _logger.LogInformation("Bulk archive completed. {Count} rows archived.", rowsAffected);
+        return rowsAffected;
     }
 
     public async Task<bool> DeleteAsync(int id) // Changed to int id

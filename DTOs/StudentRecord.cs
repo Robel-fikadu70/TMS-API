@@ -9,4 +9,4 @@ public record StudentRecord(
     uint Version
 );
 
-public record UpdateStudentRequest(string Name, decimal GPA, uint Version);
+public record UpdateStudentRequest(string? Name, decimal? GPA, bool? IsActive, uint Version);
