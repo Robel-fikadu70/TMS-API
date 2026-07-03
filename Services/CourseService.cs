@@ -15,6 +15,7 @@ public interface ICourseService
     Task<bool> DeleteAsync(string code);
 
     Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
+    Task<bool> CodeExistsAsync(string code, CancellationToken ct);
 
     Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
 }
@@ -226,4 +227,7 @@ public class CourseService : ICourseService
 
         return topCourses.AsReadOnly();
     }
+
+    public async Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
+        await _context.Courses.AsNoTracking().AnyAsync(c => c.Code == code, ct);
 }

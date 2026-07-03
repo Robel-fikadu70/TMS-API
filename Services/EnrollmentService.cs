@@ -9,32 +9,19 @@ namespace TmsApi.Services;
 
 public interface IEnrollmentService
 {
-    Task<EnrollmentRecord> EnrollAsync(string studentRegistrationNumber, string courseCode);
-    Task<EnrollmentRecord?> GetByIdAsync(int id);
+    Task<EnrollmentResponseDto> CreateAsync(
+        int courseId,
+        EnrollStudentRequest request,
+        CancellationToken ct
+    );
+    Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
     Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
 }
 
-public class EnrollmentService : IEnrollmentService
+public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService> _logger)
+    : IEnrollmentService
 {
-    private readonly ILogger<EnrollmentService> _logger;
-    private readonly TmsDbContext _context; // Inject DbContext
-    private readonly IStudentService _studentService; // Inject Student Service
-    private readonly ICourseService _courseService; // Inject Course Service
-
-    public EnrollmentService(
-        ILogger<EnrollmentService> logger,
-        TmsDbContext context,
-        IStudentService studentService,
-        ICourseService courseService
-    )
-    {
-        _logger = logger;
-        _context = context;
-        _studentService = studentService;
-        _courseService = courseService;
-    }
-
     // Helper method to map an Enrollment entity to an EnrollmentRecord DTO
     private EnrollmentRecord MapToEnrollmentRecord(Enrollment enrollment)
     {
@@ -50,96 +37,43 @@ public class EnrollmentService : IEnrollmentService
         );
     }
 
-    public async Task<EnrollmentRecord> EnrollAsync(
-        string studentRegistrationNumber,
-        string courseCode
+    public async Task<EnrollmentResponseDto> CreateAsync(
+        int courseId,
+        EnrollStudentRequest request,
+        CancellationToken ct
     )
     {
-        // 1. Validate Student existence
-        var studentEntity = await _context.Students.FirstOrDefaultAsync(s =>
-            s.RegistrationNumber == studentRegistrationNumber
-        );
-        if (studentEntity == null)
+        // TODO 2: Insert, Save, Re-read
+        var enrollment = new Enrollment
         {
-            throw new ArgumentException(
-                $"Student with RegistrationNumber '{studentRegistrationNumber}' does not exist."
-            );
-        }
-
-        // 2. Validate Course existence
-        var courseEntity = await _context
-            .Courses.Include(c => c.Enrollments) // Include enrollments to check capacity
-            .FirstOrDefaultAsync(c => c.Code == courseCode);
-        if (courseEntity == null)
-        {
-            throw new ArgumentException($"Course with Code '{courseCode}' does not exist.");
-        }
-
-        // 3. Check for duplicate enrollment
-        var existingEnrollment = await _context.Enrollments.AnyAsync(e =>
-            e.StudentId == studentEntity.Id && e.CourseId == courseEntity.Id
-        );
-
-        if (existingEnrollment)
-        {
-            _logger.LogWarning(
-                "Duplicate enrollment attempt: Student '{StudentRegNum}' already in Course '{CourseCode}'",
-                studentRegistrationNumber,
-                courseCode
-            );
-            throw new ArgumentException(
-                $"Student '{studentRegistrationNumber}' is already enrolled in Course '{courseCode}'."
-            );
-        }
-
-        // 4. Capacity check
-        if (courseEntity.Enrollments.Count >= courseEntity.Capacity)
-        {
-            throw new ArgumentException(
-                $"Course '{courseCode}' is full. Current enrollment: {courseEntity.Enrollments.Count}/{courseEntity.Capacity}."
-            );
-        }
-
-        // 5. Create new Enrollment entity
-        var newEnrollment = new Enrollment
-        {
-            StudentId = studentEntity.Id,
-            CourseId = courseEntity.Id,
+            CourseId = courseId,
+            StudentId = request.StudentId,
             EnrolledAt = DateTime.UtcNow,
-            Grade = null, // Initially no grade
         };
 
-        _context.Enrollments.Add(newEnrollment); // Stage for insertion
-        await _context.SaveChangesAsync(); // Commit to the database (Id is now populated)
+        _context.Enrollments.Add(enrollment);
+        await _context.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Enrolled Student '{StudentRegNum}' in Course '{CourseCode}' (Enrollment ID: {EnrollmentId})",
-            studentRegistrationNumber,
-            courseCode,
-            newEnrollment.Id
+            "Enrolled student {StudentId} in course {CourseId}",
+            request.StudentId,
+            courseId
         );
 
-        // Populate navigation properties for mapping
-        newEnrollment.Student = studentEntity;
-        newEnrollment.Course = courseEntity;
-
-        return MapToEnrollmentRecord(newEnrollment);
+        return (await GetByIdAsync(courseId, enrollment.Id, ct))!;
     }
 
-    public async Task<EnrollmentRecord?> GetByIdAsync(int id)
+    public async Task<EnrollmentResponseDto?> GetByIdAsync(
+        int courseId,
+        int id,
+        CancellationToken ct
+    )
     {
-        var enrollmentEntity = await _context
-            .Enrollments.Include(e => e.Student)
-            .Include(e => e.Course)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        if (enrollmentEntity == null)
-        {
-            _logger.LogWarning("Enrollment with ID: {EnrollmentId} not found.", id);
-            return null;
-        }
-
-        return MapToEnrollmentRecord(enrollmentEntity);
+        return await _context
+            .Enrollments.AsNoTracking()
+            .Where(e => e.Id == id && e.CourseId == courseId)
+            .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync()
