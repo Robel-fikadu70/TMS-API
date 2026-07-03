@@ -2,19 +2,19 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore; // For ToListAsync, FirstOrDefaultAsync, Include, AnyAsync, etc.
 using TmsApi.Data;
-using TmsApi.DTOs; // Use the DTO for the interface
+using TmsApi.DTOs;
 using TmsApi.Entities; // For the actual database entities
 
 namespace TmsApi.Services;
 
 public interface ICourseService
 {
-    Task<Course> CreateAsync(Course course, CancellationToken ct);
+    Task<CourseResponseDto> CreateAsync(CreateCourseRequest course, CancellationToken ct);
     Task<CourseRecord?> GetByCodeAsync(string code);
     Task<IReadOnlyList<CourseRecord>> GetAllAsync();
     Task<bool> DeleteAsync(string code);
 
-    Task<Course?> GetByIdAsync(int id, CancellationToken ct);
+    Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
 
     Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
 }
@@ -82,20 +82,38 @@ public class CourseService : ICourseService
     //     return MapToCourseRecord(courseEntity);
     // }
 
-    public async Task<Course> CreateAsync(Course course, CancellationToken ct)
+    public async Task<CourseResponseDto> CreateAsync(
+        CreateCourseRequest request,
+        CancellationToken ct
+    )
     {
-        // TODO 2: Add course to context and SaveChangesAsync(ct)
+        var course = new Course
+        {
+            Code = request.Code,
+            Title = request.Title,
+            Capacity = request.Capacity,
+        };
+
         _context.Courses.Add(course);
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation("Created course {CourseId} ({Code})", course.Id, course.Code);
-        return course;
+        // Re-query to get the full DTO shape
+        return (await GetByIdAsync(course.Id, ct))!;
     }
 
-    public async Task<Course?> GetByIdAsync(int id, CancellationToken ct)
+    public async Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct)
     {
-        // TODO 1: Use AsNoTracking() and return FirstOrDefaultAsync
-        return await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+        return await _context
+            .Courses.AsNoTracking()
+            .Where(c => c.Id == id)
+            .Select(c => new CourseResponseDto(
+                c.Id,
+                c.Code,
+                c.Title,
+                c.Capacity,
+                c.Enrollments.Count
+            ))
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<CourseRecord?> GetByCodeAsync(string code)

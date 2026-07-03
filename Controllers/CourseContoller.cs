@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using TmsApi.Data;
-using TmsApi.DTOs; // For CourseRecord DTO
-using TmsApi.Entities;
+using TmsApi.DTOs;
 using TmsApi.Services; // For ICourseService
 
 namespace TmsApi.Controllers;
@@ -35,10 +33,10 @@ public class CoursesController(ICourseService _courseService) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCourse(Course course, CancellationToken ct)
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
     {
         // TODO 4: Call CreateAsync and return CreatedAtAction
-        var result = await _courseService.CreateAsync(course, ct);
+        var result = await _courseService.CreateAsync(request, ct);
 
         // This pattern is required for the 'Location' header in the response
         return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
@@ -81,6 +79,3 @@ public class CoursesController(ICourseService _courseService) : ControllerBase
         return Ok(topCourses);
     }
 }
-
-// Request Model
-public record CreateCourseRequest(string Code, string Title, int Capacity);
