@@ -118,7 +118,6 @@ public class CourseService : ICourseService
             .FirstOrDefaultAsync(ct);
     }
 
-
     public async Task<bool> DeleteAsync(string code)
     {
         // Find the course entity first
