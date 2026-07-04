@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Scalar.AspNetCore;
 using TmsApi.Data;
 using TmsApi.Entities;
+using TmsApi.Filters;
 using TmsApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,7 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails(); // Required for Exercise 6
 builder.Services.AddOpenApi(); // Required for Exercise 7
-builder.Services.AddControllers(); // Required for Exercise 5
+builder.Services.AddControllers(options =>
+{
+    // This applies the filter to EVERY controller in the project
+    options.Filters.Add<AuditLogFilter>();
+});
 builder.Services.AddExceptionHandler(options => { }); // Required to prevent startup crash
 
 // Exercise 2 Services & DI Validation
@@ -78,11 +83,11 @@ if (app.Environment.IsDevelopment())
 // 4. Map Controllers (Exercise 5)
 app.MapControllers();
 
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
-    await TmsApi.Persistence.DataSeeder.SeedAsync(context);
-}
+// if (app.Environment.IsDevelopment())
+// {
+//     using var scope = app.Services.CreateScope();
+//     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+//     await TmsApi.Persistence.DataSeeder.SeedAsync(context);
+// }
 
 app.Run();

@@ -10,12 +10,13 @@ namespace TmsApi.Services;
 public interface ICourseService
 {
     Task<CourseResponseDto> CreateAsync(CreateCourseRequest course, CancellationToken ct);
-    Task<CourseRecord?> GetByCodeAsync(string code);
-    Task<IReadOnlyList<CourseRecord>> GetAllAsync();
     Task<bool> DeleteAsync(string code);
-
     Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
     Task<bool> CodeExistsAsync(string code, CancellationToken ct);
+    Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(
+        PagedRequest request,
+        CancellationToken ct
+    );
 
     Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
 }
@@ -117,35 +118,6 @@ public class CourseService : ICourseService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<CourseRecord?> GetByCodeAsync(string code)
-    {
-        // Query the database, including Enrollments to calculate EnrolledCount
-        var courseEntity = await _context
-            .Courses.Include(c => c.Enrollments)
-            .FirstOrDefaultAsync(c => c.Code == code);
-
-        if (courseEntity == null)
-        {
-            _logger.LogWarning("Course {CourseCode} not found.", code);
-            return null;
-        }
-
-        // Map the found entity to the DTO
-        return MapToCourseRecord(courseEntity);
-    }
-
-    public async Task<IReadOnlyList<CourseRecord>> GetAllAsync()
-    {
-        // Query the database, including Enrollments for each course
-        var courseEntities = await _context
-            .Courses.Include(c => c.Enrollments) // Eagerly load enrollments
-            .ToListAsync();
-
-        // Map the list of entities to a list of DTOs
-        var courseRecords = courseEntities.Select(MapToCourseRecord).ToList();
-
-        return courseRecords.AsReadOnly(); // Return as IReadOnlyList for immutability
-    }
 
     public async Task<bool> DeleteAsync(string code)
     {
@@ -226,6 +198,63 @@ public class CourseService : ICourseService
             .ToListAsync();
 
         return topCourses.AsReadOnly();
+    }
+
+    public async Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(
+        PagedRequest request,
+        CancellationToken ct
+    )
+    {
+        // TODO 1: Start with NoTracking
+        var query = _context.Courses.AsNoTracking();
+
+        // TODO 2: Search (Case-insensitive)
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            string search = $"%{request.Search}%";
+            query = query.Where(c =>
+                EF.Functions.ILike(c.Title, search) || EF.Functions.ILike(c.Code, search)
+            );
+        }
+
+        // TODO 3: Count BEFORE paging
+        var totalCount = await query.CountAsync(ct);
+
+        // TODO 4: Sorting (Whitelisted to prevent SQL injection)
+        query = request.OrderBy switch
+        {
+            "Code" => request.Descending
+                ? query.OrderByDescending(c => c.Code)
+                : query.OrderBy(c => c.Code),
+            "Capacity" => request.Descending
+                ? query.OrderByDescending(c => c.Capacity)
+                : query.OrderBy(c => c.Capacity),
+            _ => request.Descending
+                ? query.OrderByDescending(c => c.Title)
+                : query.OrderBy(c => c.Title),
+        };
+
+        // TODO 5: Paging & Projection
+        var items = await query
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(c => new CourseResponseDto(
+                c.Id,
+                c.Code,
+                c.Title,
+                c.Capacity,
+                c.Enrollments.Count
+            ))
+            .ToListAsync(ct);
+
+        // TODO 6: Return the paged envelope
+        return new PagedResponse<CourseResponseDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize,
+        };
     }
 
     public async Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>

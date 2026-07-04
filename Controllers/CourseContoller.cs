@@ -8,20 +8,14 @@ namespace TmsApi.Controllers;
 [Route("api/courses")]
 public class CoursesController(ICourseService _courseService) : ControllerBase
 {
-    // GET /api/courses
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetCourses(
+        [FromQuery] PagedRequest request,
+        CancellationToken ct
+    )
     {
-        var courses = await _courseService.GetAllAsync();
-        return Ok(courses); // Returns 200 OK with list of CourseRecord DTOs
-    }
-
-    // GET /api/courses/{code}
-    [HttpGet("{code}")]
-    public async Task<IActionResult> GetByCode(string code)
-    {
-        var record = await _courseService.GetByCodeAsync(code);
-        return record is not null ? Ok(record) : NotFound(); // Returns 200 OK or 404 Not Found
+        var result = await _courseService.GetCoursesAsync(request, ct);
+        return Ok(result);
     }
 
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
@@ -53,27 +47,6 @@ public class CoursesController(ICourseService _courseService) : ControllerBase
         // This pattern is required for the 'Location' header in the response
         return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
     }
-
-    // // POST /api/courses
-    // [HttpPost]
-    // public async Task<IActionResult> Create([FromBody] CreateCourseRequest request)
-    // {
-    //     try
-    //     {
-    //         var record = await _courseService.CreateAsync(
-    //             request.Code,
-    //             request.Title,
-    //             request.Capacity
-    //         );
-    //         // Returns 201 Created with Location header and the created CourseRecord DTO
-    //         return CreatedAtAction(nameof(GetByCode), new { code = record.Code }, record);
-    //     }
-    //     catch (ArgumentException ex)
-    //     {
-    //         // Catch specific validation exceptions for better error messages
-    //         return BadRequest(new { Message = ex.Message });
-    //     }
-    // }
 
     // DELETE /api/courses/{code}
     [HttpDelete("{code}")]
