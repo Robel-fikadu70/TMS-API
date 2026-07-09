@@ -32,58 +32,6 @@ public class CourseService : ICourseService
         _context = context;
     }
 
-    // Helper method to map a Course entity to a CourseRecord DTO
-    // includes calculating EnrolledCount from the database
-    private CourseRecord MapToCourseRecord(Course course)
-    {
-        int enrolledCount = course.Enrollments?.Count ?? 0; // Safely get count if loaded
-
-        return new CourseRecord(
-            Code: course.Code,
-            Title: course.Title,
-            Capacity: course.Capacity,
-            EnrolledCount: enrolledCount
-        );
-    }
-
-    // public async Task<CourseRecord> CreateAsync(string code, string title, int capacity)
-    // {
-    //     if (string.IsNullOrWhiteSpace(code))
-    //         throw new ArgumentException("Course code is required.", nameof(code));
-    //     if (string.IsNullOrWhiteSpace(title))
-    //         throw new ArgumentException("Course title is required.", nameof(title));
-    //     if (capacity <= 0)
-    //         throw new ArgumentException("Capacity must be greater than 0.", nameof(capacity));
-
-    //     // Check if a course with this code already exists in the database
-    //     var existingCourse = await _context.Courses.FirstOrDefaultAsync(c => c.Code == code);
-    //     if (existingCourse != null)
-    //     {
-    //         throw new ArgumentException($"Course {code} already exists.");
-    //     }
-
-    //     // Create a new Course entity
-    //     var courseEntity = new Course
-    //     {
-    //         Code = code.ToUpper(),
-    //         Title = title,
-    //         Capacity = capacity,
-    //         // Enrollments, Assessments, Certificates collections are initialized by default
-    //     };
-
-    //     _context.Courses.Add(courseEntity); // Stage for insertion
-    //     await _context.SaveChangesAsync(); // Commit to the database (Id is now populated)
-
-    //     _logger.LogInformation(
-    //         "Created course {CourseCode} with title {CourseTitle}",
-    //         courseEntity.Code,
-    //         courseEntity.Title
-    //     );
-
-    //     // Map the created entity to the DTO before returning (EnrolledCount is 0 for a new course)
-    //     return MapToCourseRecord(courseEntity);
-    // }
-
     public async Task<CourseResponseDto> CreateAsync(
         CreateCourseRequest request,
         CancellationToken ct

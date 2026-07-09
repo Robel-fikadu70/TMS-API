@@ -6,7 +6,8 @@ namespace TmsApi.Controllers;
 
 [ApiController]
 [Route("api/courses")]
-public class CoursesController(ICourseService _courseService) : ControllerBase
+public class CoursesController(ICourseService _courseService, LinkGenerator linkGenerator)
+    : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetCourses(
@@ -23,7 +24,66 @@ public class CoursesController(ICourseService _courseService) : ControllerBase
     {
         // TODO 3: Call service and return Ok or NotFound
         var course = await _courseService.GetByIdAsync(id, ct);
-        return course is not null ? Ok(course) : NotFound();
+        if (course == null)
+            return NotFound();
+
+        var links = new List<LinkDto>
+        {
+            //'self' link that points back to this exact method
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "self",
+                "GET"
+            ),
+            //link for actions (updat/delete)
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "delete",
+                "DELETE"
+            ),
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "update",
+                "PUT"
+            ),
+            //link to the list of enrollments using the name of the method in enrollment controller
+            new(
+                linkGenerator.GetPathByName(
+                    HttpContext,
+                    "ListCourseEnrollments",
+                    new { courseId = id }
+                ),
+                "enrollments",
+                "GET"
+            ),
+        };
+        //only show enrollment link if the capacity is not full
+        if (course.EnrollmentCount < course.Capacity)
+        {
+            links.Add(
+                new(
+                    linkGenerator.GetPathByName(
+                        HttpContext,
+                        "ListCourseEnrollments",
+                        new { courseId = id }
+                    ),
+                    "enroll",
+                    "POST"
+                )
+            );
+        }
+
+        var detailDto = new CourseDetailDto
+        {
+            Id = course.Id,
+            Code = course.Code,
+            Title = course.Title,
+            Capacity = course.Capacity,
+            EnrollmentCount = course.EnrollmentCount,
+            Links = links,
+        };
+
+        return Ok(detailDto);
     }
 
     [HttpPost]

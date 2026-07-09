@@ -21,6 +21,18 @@ public class EnrollmentsController(
         return Ok(enrollments);
     }
 
+    [HttpGet(Name = "ListCourseEnrollments")]
+    public async Task<IActionResult> GetEnrollments(int courseId, CancellationToken ct)
+    {
+        // Rule: Always check if the parent (Course) exists first (404 check)
+        var course = await _courseService.GetByIdAsync(courseId, ct);
+        if (course == null)
+            return NotFound();
+
+        var result = await _enrollmentService.GetByCourseAsync(courseId, ct);
+        return Ok(result);
+    }
+
     [HttpGet("{id:int}", Name = nameof(GetEnrollment))]
     public async Task<IActionResult> GetEnrollment(int courseId, int id, CancellationToken ct)
     {

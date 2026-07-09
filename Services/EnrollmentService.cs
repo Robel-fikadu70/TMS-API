@@ -15,6 +15,7 @@ public interface IEnrollmentService
         CancellationToken ct
     );
     Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
+    Task<IReadOnlyList<EnrollmentResponseDto>> GetByCourseAsync(int courseId, CancellationToken ct);
     Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
 }
@@ -74,6 +75,18 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
             .Where(e => e.Id == id && e.CourseId == courseId)
             .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<EnrollmentResponseDto>> GetByCourseAsync(
+        int courseId,
+        CancellationToken ct
+    )
+    {
+        return await _context
+            .Enrollments.AsNoTracking()
+            .Where(e => e.CourseId == courseId) // Filter by course
+            .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
+            .ToListAsync(ct);
     }
 
     public async Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync()
