@@ -12,6 +12,40 @@ namespace TmsApi.Controllers;
 public class CoursesController(ICourseService _courseService, LinkGenerator linkGenerator)
     : ControllerBase
 {
+    [HttpPost]
+    [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [EndpointSummary("Create a new course")]
+    [EndpointDescription(
+        "Creates a course with a unique code. Returns409 if the course code already exists."
+    )]
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
+    {
+        // Check business rule BEFORE trying to save
+        if (await _courseService.CodeExistsAsync(request.Code, ct))
+        {
+            return Conflict(
+                new ProblemDetails
+                {
+                    Title = "Course code already exists",
+                    Detail = $"A course with code '{request.Code}' is already registered.",
+                    Status = StatusCodes.Status409Conflict,
+                }
+            );
+        }
+        // TODO 4: Call CreateAsync and return CreatedAtAction
+        var result = await _courseService.CreateAsync(request, ct);
+
+        if (result == null)
+        {
+            return BadRequest("Course creation failed. something went wrong.");
+        }
+        // This pattern is required for the 'Location' header in the response
+        return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
+    }
+
+    //GET /api/courses
     [HttpGet]
     [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
     [EndpointSummary("List courses with pagination")]
@@ -27,6 +61,7 @@ public class CoursesController(ICourseService _courseService, LinkGenerator link
         return Ok(result);
     }
 
+    //GET /api/courses/id
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
     [ProducesResponseType(typeof(CourseDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -58,7 +93,7 @@ public class CoursesController(ICourseService _courseService, LinkGenerator link
             new(
                 linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
                 "update",
-                "PUT"
+                "PATCH"
             ),
             //link to the list of enrollments using the name of the method in enrollment controller
             new(
@@ -98,35 +133,6 @@ public class CoursesController(ICourseService _courseService, LinkGenerator link
         };
 
         return Ok(detailDto);
-    }
-
-    [HttpPost]
-    [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    [EndpointSummary("Create a new course")]
-    [EndpointDescription(
-        "Creates a course with a unique code. Returns409 if the course code already exists."
-    )]
-    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
-    {
-        // Check business rule BEFORE trying to save
-        if (await _courseService.CodeExistsAsync(request.Code, ct))
-        {
-            return Conflict(
-                new ProblemDetails
-                {
-                    Title = "Course code already exists",
-                    Detail = $"A course with code '{request.Code}' is already registered.",
-                    Status = StatusCodes.Status409Conflict,
-                }
-            );
-        }
-        // TODO 4: Call CreateAsync and return CreatedAtAction
-        var result = await _courseService.CreateAsync(request, ct);
-
-        // This pattern is required for the 'Location' header in the response
-        return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
     }
 
     // DELETE /api/courses/{code}

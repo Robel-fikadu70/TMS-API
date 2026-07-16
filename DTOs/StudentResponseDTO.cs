@@ -1,10 +1,10 @@
 namespace TmsApi.DTOs;
 
-public record StudentRecord(
+public record StudentResponseDTO(
     int Id,
     string RegistrationNumber,
     string Name,
     decimal GPA,
-    bool IsActive,
-    uint Version
+    int EnrollmentCount,
+    bool IsActive
 );

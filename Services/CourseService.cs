@@ -167,8 +167,10 @@ public class CourseService : ICourseService
         // TODO 3: Count BEFORE paging
         var totalCount = await query.CountAsync(ct);
 
+        var sortBy = string.IsNullOrWhiteSpace(request.OrderBy) ? "Title" : request.OrderBy;
+
         // TODO 4: Sorting (Whitelisted to prevent SQL injection)
-        query = request.OrderBy switch
+        query = sortBy switch
         {
             "Code" => request.Descending
                 ? query.OrderByDescending(c => c.Code)
@@ -176,7 +178,7 @@ public class CourseService : ICourseService
             "Capacity" => request.Descending
                 ? query.OrderByDescending(c => c.Capacity)
                 : query.OrderBy(c => c.Capacity),
-            _ => request.Descending
+            "Title" or _ => request.Descending
                 ? query.OrderByDescending(c => c.Title)
                 : query.OrderBy(c => c.Title),
         };

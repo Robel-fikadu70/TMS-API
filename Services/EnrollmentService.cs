@@ -16,7 +16,7 @@ public interface IEnrollmentService
     );
     Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
     Task<IReadOnlyList<EnrollmentResponseDto>> GetByCourseAsync(int courseId, CancellationToken ct);
-    Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync();
+    Task<PagedResponse<EnrollmentResponseDto>> GetAllAsync(PagedRequest request, CancellationToken ct);
     Task<bool> DeleteAsync(int id);
 }
 
@@ -55,12 +55,6 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
         _context.Enrollments.Add(enrollment);
         await _context.SaveChangesAsync(ct);
 
-        _logger.LogInformation(
-            "Enrolled student {StudentId} in course {CourseId}",
-            request.StudentId,
-            courseId
-        );
-
         return (await GetByIdAsync(courseId, enrollment.Id, ct))!;
     }
 
@@ -89,8 +83,15 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
             .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync()
+    public async Task<PagedResponse<EnrollmentResponseDto>> GetAllAsync(PagedRequest request, CancellationToken ct)
     {
+        var query = _context.Enrollments.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            string search = $
+        }
+
         var enrollmentEntities = await _context
             .Enrollments.Include(e => e.Student)
             .Include(e => e.Course)

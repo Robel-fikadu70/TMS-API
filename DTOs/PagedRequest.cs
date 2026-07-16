@@ -18,6 +18,6 @@ public record PagedRequest
     }
 
     public string? Search { get; init; }
-    public string OrderBy { get; init; } = "Title";
+    public string OrderBy { get; init; }
     public bool Descending { get; init; }
 }
