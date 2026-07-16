@@ -20,6 +20,7 @@ public interface IStudentService
     Task<bool> DeleteAsync(int id);
     Task<bool> SoftDeleteAsync(int id);
     Task<int> BulkArchiveEnrollmentsAsync(int yearThreshold);
+    Task<bool> StudentExists(int studentId, CancellationToken ct);
 }
 
 public class StudentService(ILogger<StudentService> _logger, TmsDbContext _context)
@@ -214,6 +215,15 @@ public class StudentService(ILogger<StudentService> _logger, TmsDbContext _conte
         await _context.SaveChangesAsync(); // Commit deletion to the database
 
         _logger.LogInformation("Deleted Student {studentId}", id);
+        return true;
+    }
+
+    public async Task<bool> StudentExists(int studentId, CancellationToken ct)
+    {
+        var student = GetByIdAsync(studentId, ct);
+        if (student == null)
+            return false;
+
         return true;
     }
 }
