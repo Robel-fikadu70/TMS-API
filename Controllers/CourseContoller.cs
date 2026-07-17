@@ -6,7 +6,7 @@ namespace TmsApi.Controllers;
 
 [ApiController]
 [Route("api/courses")]
-[Tags("Coursed")]
+[Tags("Courses")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 public class CoursesController(ICourseService _courseService, LinkGenerator linkGenerator)
@@ -135,19 +135,25 @@ public class CoursesController(ICourseService _courseService, LinkGenerator link
         return Ok(detailDto);
     }
 
-    // DELETE /api/courses/{code}
-    [HttpDelete("{code}")]
-    public async Task<IActionResult> Delete(string code)
-    {
-        var deleted = await _courseService.DeleteAsync(code);
-        return deleted ? NoContent() : NotFound(); // Returns 204 No Content or 404 Not Found
-    }
-
     // GET /api/courses/top-by-enrollment
     [HttpGet("top-by-enrollment")]
+    [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get top courses by enrollment.")]
     public async Task<IActionResult> GetTopCoursesByEnrollment([FromQuery] int topCount = 5)
     {
         var topCourses = await _courseService.GetTopCoursesByEnrollmentAsync(topCount);
         return Ok(topCourses);
+    }
+
+    // DELETE /api/courses/{code}
+    [HttpDelete("{code}")]
+    [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete course by course code")]
+    public async Task<IActionResult> Delete(string code)
+    {
+        var deleted = await _courseService.DeleteAsync(code);
+        return deleted ? NoContent() : NotFound(); // Returns 204 No Content or 404 Not Found
     }
 }
