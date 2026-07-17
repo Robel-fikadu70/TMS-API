@@ -16,7 +16,8 @@ namespace TmsApi.Migrations
                 type: "numeric(3,2)",
                 nullable: false,
                 oldClrType: typeof(decimal),
-                oldType: "numeric");
+                oldType: "numeric"
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "Title",
@@ -25,7 +26,8 @@ namespace TmsApi.Migrations
                 maxLength: 150,
                 nullable: false,
                 oldClrType: typeof(string),
-                oldType: "text");
+                oldType: "text"
+            );
 
             migrationBuilder.AlterColumn<decimal>(
                 name: "MaxScore",
@@ -33,7 +35,8 @@ namespace TmsApi.Migrations
                 type: "numeric(5,2)",
                 nullable: false,
                 oldClrType: typeof(decimal),
-                oldType: "numeric");
+                oldType: "numeric"
+            );
         }
 
         /// <inheritdoc />
@@ -45,7 +48,8 @@ namespace TmsApi.Migrations
                 type: "numeric",
                 nullable: false,
                 oldClrType: typeof(decimal),
-                oldType: "numeric(3,2)");
+                oldType: "numeric(3,2)"
+            );
 
             migrationBuilder.AlterColumn<string>(
                 name: "Title",
@@ -54,7 +58,8 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "character varying(150)",
-                oldMaxLength: 150);
+                oldMaxLength: 150
+            );
 
             migrationBuilder.AlterColumn<decimal>(
                 name: "MaxScore",
@@ -62,7 +67,8 @@ namespace TmsApi.Migrations
                 type: "numeric",
                 nullable: false,
                 oldClrType: typeof(decimal),
-                oldType: "numeric(5,2)");
+                oldType: "numeric(5,2)"
+            );
         }
     }
 }
