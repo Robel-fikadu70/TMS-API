@@ -115,24 +115,29 @@ public class StudentsController(IStudentService _studentService, LinkGenerator l
         }
     }
 
+    [HttpPatch("archive-old-enrollments/{year}")]
+    [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Archive student's enrollments")]
+    [EndpointDescription(
+        "Archive an enrollment that are older than the specified year. Returns the number of archieved enrollments."
+    )]
+    public async Task<IActionResult> Archive(int year)
+    {
+        var count = await _studentService.BulkArchiveEnrollmentsAsync(year);
+        return Ok(new { archivedCount = count });
+    }
+
     //DELETE api/students/soft/{id}
     [HttpDelete("soft/{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [EndpointSummary("Delete Student by ID")]
+    [EndpointSummary("Soft Delete Student by ID")]
     [EndpointDescription("soft deletes student record.")]
     public async Task<IActionResult> SoftDelete(int id)
     {
         var success = await _studentService.SoftDeleteAsync(id);
         return success ? NoContent() : NotFound();
-    }
-
-    // Professional Bulk Endpoint
-    [HttpPatch("archive-old-enrollments/{year}")]
-    public async Task<IActionResult> Archive(int year)
-    {
-        var count = await _studentService.BulkArchiveEnrollmentsAsync(year);
-        return Ok(new { archivedCount = count });
     }
 
     // DELETE /api/students/{id}
@@ -141,7 +146,7 @@ public class StudentsController(IStudentService _studentService, LinkGenerator l
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [EndpointSummary("Delete Student by ID")]
     [EndpointDescription("Hard deletes student record.")]
-    public async Task<IActionResult> Delete(int id) // Changed id type to int
+    public async Task<IActionResult> Delete(int id)
     {
         var deleted = await _studentService.DeleteAsync(id);
         return deleted ? NoContent() : NotFound(); // Returns 204 No Content or 404 Not Found
