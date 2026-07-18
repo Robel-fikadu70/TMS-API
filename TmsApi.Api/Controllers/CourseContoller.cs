@@ -1,0 +1,159 @@
+using Microsoft.AspNetCore.Mvc;
+using TmsApi.Application.DTOs;
+using TmsApi.Infrastructure.Services;
+
+namespace TmsApi.Api.Controllers;
+
+[ApiController]
+[Route("api/courses")]
+[Tags("Courses")]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+public class CoursesController(ICourseService _courseService, LinkGenerator linkGenerator)
+    : ControllerBase
+{
+    [HttpPost]
+    [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [EndpointSummary("Create a new course")]
+    [EndpointDescription(
+        "Creates a course with a unique code. Returns409 if the course code already exists."
+    )]
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
+    {
+        // Check business rule BEFORE trying to save
+        if (await _courseService.CodeExistsAsync(request.Code, ct))
+        {
+            return Conflict(
+                new ProblemDetails
+                {
+                    Title = "Course code already exists",
+                    Detail = $"A course with code '{request.Code}' is already registered.",
+                    Status = StatusCodes.Status409Conflict,
+                }
+            );
+        }
+        // TODO 4: Call CreateAsync and return CreatedAtAction
+        var result = await _courseService.CreateAsync(request, ct);
+
+        if (result == null)
+        {
+            return BadRequest("Course creation failed. something went wrong.");
+        }
+        // This pattern is required for the 'Location' header in the response
+        return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
+    }
+
+    //GET /api/courses
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List courses with pagination")]
+    [EndpointDescription(
+        "Returns a paginated, optionally filtered list of TMS courses. PageSize is capped at 50."
+    )]
+    public async Task<IActionResult> GetCourses(
+        [FromQuery] PagedRequest request,
+        CancellationToken ct
+    )
+    {
+        var result = await _courseService.GetCoursesAsync(request, ct);
+        return Ok(result);
+    }
+
+    //GET /api/courses/id
+    [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    [ProducesResponseType(typeof(CourseDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get course by ID")]
+    [EndpointDescription(
+        "Returns course details with HATEOAS links. Return 404 if the course does not exist."
+    )]
+    public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
+    {
+        // TODO 3: Call service and return Ok or NotFound
+        var course = await _courseService.GetByIdAsync(id, ct);
+        if (course == null)
+            return NotFound();
+
+        var links = new List<LinkDto>
+        {
+            //'self' link that points back to this exact method
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "self",
+                "GET"
+            ),
+            //link for actions (updat/delete)
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "delete",
+                "DELETE"
+            ),
+            new(
+                linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id }),
+                "update",
+                "PATCH"
+            ),
+            //link to the list of enrollments using the name of the method in enrollment controller
+            new(
+                linkGenerator.GetPathByName(
+                    HttpContext,
+                    "ListCourseEnrollments",
+                    new { courseId = id }
+                ),
+                "enrollments",
+                "GET"
+            ),
+        };
+        //only show enrollment link if the capacity is not full
+        if (course.EnrollmentCount < course.Capacity)
+        {
+            links.Add(
+                new(
+                    linkGenerator.GetPathByName(
+                        HttpContext,
+                        "ListCourseEnrollments",
+                        new { courseId = id }
+                    ),
+                    "enroll",
+                    "POST"
+                )
+            );
+        }
+
+        var detailDto = new CourseDetailDto
+        {
+            Id = course.Id,
+            Code = course.Code,
+            Title = course.Title,
+            Capacity = course.Capacity,
+            EnrollmentCount = course.EnrollmentCount,
+            Links = links,
+        };
+
+        return Ok(detailDto);
+    }
+
+    // GET /api/courses/top-by-enrollment
+    [HttpGet("top-by-enrollment")]
+    [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get top courses by enrollment.")]
+    public async Task<IActionResult> GetTopCoursesByEnrollment([FromQuery] int topCount = 5)
+    {
+        var topCourses = await _courseService.GetTopCoursesByEnrollmentAsync(topCount);
+        return Ok(topCourses);
+    }
+
+    // DELETE /api/courses/{code}
+    [HttpDelete("{code}")]
+    [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Delete course by course code")]
+    public async Task<IActionResult> Delete(string code)
+    {
+        var deleted = await _courseService.DeleteAsync(code);
+        return deleted ? NoContent() : NotFound(); // Returns 204 No Content or 404 Not Found
+    }
+}
