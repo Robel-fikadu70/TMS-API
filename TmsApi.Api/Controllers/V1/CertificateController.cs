@@ -1,11 +1,13 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs;
 using TmsApi.Infrastructure.Services;
 
-namespace TmsApi.Api.Controllers;
+namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
-[Route("api")]
+[Route("api/v{version:apiVersion}")]
+[ApiVersion("1.0")]
 [Tags("Certificates")]
 public class CertificatesController(ICertificateService certificateService) : ControllerBase
 {

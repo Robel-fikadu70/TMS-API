@@ -1,12 +1,15 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
 using TmsApi.Infrastructure.Services;
 
-namespace TmsApi.Api.Controllers;
+namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
-[Route("api/students")]
+[Route("api/v{version:apiVersion}/students")]
+[ApiVersion("1.0")]
+
 public class StudentsController(IStudentService _studentService, LinkGenerator linkGenerator)
     : ControllerBase
 {

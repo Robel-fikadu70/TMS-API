@@ -1,11 +1,13 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs;
 using TmsApi.Infrastructure.Services;
 
-namespace TmsApi.Api.Controllers;
+namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
-[Route("/api")]
+[Route("api/v{version:apiVersion}")]
+[ApiVersion("1.0")]
 [Tags("Assessments")]
 public class AssessmentController(
     IAssessmentService _assessmentService,
@@ -14,7 +16,7 @@ public class AssessmentController(
     LinkGenerator linkGenerator
 ) : ControllerBase
 {
-    [HttpPost("/courses/{courseId:int}/assessments")]
+    [HttpPost("courses/{courseId:int}/assessments")]
     [ProducesResponseType(typeof(AssessmentResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -62,7 +64,7 @@ public class AssessmentController(
         return Ok(assessments);
     }
 
-    [HttpGet("/assessments/{id:int}", Name = nameof(GetAssessmentById))]
+    [HttpGet("assessments/{id:int}", Name = nameof(GetAssessmentById))]
     [ProducesResponseType(typeof(AssessmentResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -105,7 +107,7 @@ public class AssessmentController(
         return Ok(detailedDTO);
     }
 
-    [HttpPut("/assessment/{id:int}", Name = nameof(Update))]
+    [HttpPut("assessment/{id:int}", Name = nameof(Update))]
     public async Task<IActionResult> Update(
         int id,
         UpdateAssessmentRequest request,

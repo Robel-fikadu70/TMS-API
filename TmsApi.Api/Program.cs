@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -12,8 +13,40 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. SERVICES (BUILDER SECTION) ---
 
-builder.Services.AddProblemDetails(); // Required for Exercise 6
-builder.Services.AddOpenApi(); // Required for Exercise 7
+builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi(
+    "v1",
+    options =>
+    {
+        options.ShouldInclude = description => description.GroupName == "v1";
+    }
+);
+
+builder.Services.AddOpenApi(
+    "v2",
+    options =>
+    {
+        options.ShouldInclude = description => description.GroupName == "v2";
+    }
+);
+
+builder
+    .Services.AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true; // Tells the user which versions exist in the headers
+        options.ApiVersionReader = ApiVersionReader.Combine(
+            new UrlSegmentApiVersionReader(),
+            new HeaderApiVersionReader("X-Api-Version")
+        );
+    })
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
+    });
+
 builder.Services.AddControllers(options =>
 {
     // This applies the filter to EVERY controller in the project
@@ -64,6 +97,7 @@ var app = builder.Build();
 
 // 1. Logging is the outer wrapper (Session 1B)
 app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<V1DeprecationMiddleware>();
 
 // 2. Exception handling (Session 3 / Exercise 6)
 app.UseExceptionHandler();
@@ -79,7 +113,17 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(options =>
+    {
+        options
+            .WithTitle("TMS API Reference")
+            .WithTheme(ScalarTheme.DeepSpace)
+            .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+
+        // This adds the dropdown for V1 and V2
+        options.AddDocument("v1", "API Version 1.0");
+        options.AddDocument("v2", "API Version 2.0");
+    });
 }
 
 // 4. Map Controllers (Exercise 5)

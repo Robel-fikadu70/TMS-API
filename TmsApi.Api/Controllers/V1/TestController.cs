@@ -1,13 +1,14 @@
-using System;
-using System.Linq;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Infrastructure.Persistence;
 
-namespace TmsApi.Api.Controllers;
+namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
-[Route("api/test")]
+[Route("api/v{version:apiVersion}/test")]
+[ApiVersion("1.0")]
+
 public class TestController(TmsDbContext context) : ControllerBase
 {
     [HttpGet("deferred")]

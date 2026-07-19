@@ -1,11 +1,13 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs;
 using TmsApi.Infrastructure.Services;
 
-namespace TmsApi.Api.Controllers;
+namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
-[Route("api/courses")]
+[Route("api/v{version:apiVersion}/courses")]
+[ApiVersion("1.0")]
 [Tags("Courses")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
