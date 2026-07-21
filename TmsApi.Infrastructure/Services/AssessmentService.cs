@@ -2,25 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Infrastructure.Services;
 
-public interface IAssessmentService
-{
-    Task<AssessmentResponseDto> CreateAsync(
-        int courseId,
-        CreateAssessmentRequest request,
-        CancellationToken ct
-    );
-    Task<IEnumerable<AssessmentResponseDto>> GetByCourseIdAsync(int courseId, CancellationToken ct);
-    Task<bool> DeleteAsync(int id, CancellationToken ct);
-    Task<AssessmentResponseDto?> GetByIdAsync(int assessmentId, CancellationToken ct);
-    Task<AssessmentResponseDto> UpdateAsync(
-        int assessmentId,
-        UpdateAssessmentRequest request,
-        CancellationToken ct
-    );
-}
 
 public class AssessmentService(TmsDbContext _context) : IAssessmentService
 {

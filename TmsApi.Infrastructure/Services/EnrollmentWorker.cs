@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-
+using TmsApi.Application.Interfaces;
 namespace TmsApi.Infrastructure.Services;
 public class EnrollmentWorker
 {

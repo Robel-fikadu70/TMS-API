@@ -2,21 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Infrastructure.Services;
-
-public interface ICertificateService
-{
-    Task<CertificateResponseDto> IssueAsync(IssueCertificateRequest request, CancellationToken ct);
-    Task<CertificateResponseDto?> GetByIdAsync(int id, CancellationToken ct);
-    Task<CertificateResponseDto?> GetBySerialAsync(string serial, CancellationToken ct);
-    Task<IEnumerable<CertificateResponseDto>> GetByStudentIdAsync(
-        int studentId,
-        CancellationToken ct
-    );
-    Task<bool> RevokeAsync(int id, CancellationToken ct);
-}
-
 public class CertificateService(TmsDbContext context) : ICertificateService
 {
     public async Task<CertificateResponseDto> IssueAsync(

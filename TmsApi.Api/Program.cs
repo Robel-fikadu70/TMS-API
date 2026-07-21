@@ -1,18 +1,30 @@
 using Asp.Versioning;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Api.Filters;
 using TmsApi.Api.Middlewares;
 using TmsApi.Api.Security;
+using TmsApi.Application.Behaviors;
 using TmsApi.Application.Common;
+using TmsApi.Application.Enrollments.Commands;
+using TmsApi.Application.Interfaces;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. SERVICES (BUILDER SECTION) ---
-
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(EnrollStudentHandler).Assembly)
+);
+builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi(
     "v1",
@@ -52,7 +64,6 @@ builder.Services.AddControllers(options =>
     // This applies the filter to EVERY controller in the project
     options.Filters.Add<AuditLogFilter>();
 });
-builder.Services.AddExceptionHandler(options => { }); // Required to prevent startup crash
 
 // Exercise 2 Services & DI Validation
 builder.Services.AddSingleton<EnrollmentWorker>();

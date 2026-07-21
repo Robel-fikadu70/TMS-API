@@ -3,26 +3,11 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; // For ToListAsync, FirstOrDefaultAsync, Include, AnyAsync, etc.
 using TmsApi.Application.DTOs;
+using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
-
-public interface IEnrollmentService
-{
-    Task<EnrollmentResponseDto> CreateAsync(
-        int courseId,
-        EnrollStudentRequest request,
-        CancellationToken ct
-    );
-    Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
-    Task<PagedResponse<EnrollmentResponseDto>> GetByCourseAsync(
-        int courseId,
-        PagedRequest request,
-        CancellationToken ct
-    );
-    Task<bool> DeleteAsync(int id);
-}
 
 public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService> _logger)
     : IEnrollmentService
@@ -96,6 +81,35 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
             Page = request.Page,
             PageSize = request.PageSize,
         };
+    }
+
+    public async Task<bool> ExistsAsync(int studentId, string courseCode, CancellationToken ct)
+    {
+        // AnyAsync is faster and returns a bool.
+        // We don't need .Include() because we are accessing e.Course.Code directly
+        return await _context.Enrollments.AnyAsync(
+            e => e.StudentId == studentId && e.Course.Code == courseCode,
+            ct
+        );
+    }
+
+    public async Task<List<EnrollmentWithDetailsResponseDto>?> GetByStudentIdAsync(
+        int studentId,
+        CancellationToken ct
+    )
+    {
+        return await _context
+            .Enrollments.AsNoTracking()
+            .Where(e => e.StudentId == studentId)
+            .Select(e => new EnrollmentWithDetailsResponseDto(
+                e.Id,
+                e.CourseId,
+                e.Course.Title,
+                e.Course.Code,
+                e.StudentId,
+                e.EnrolledAt
+            ))
+            .ToListAsync(ct);
     }
 
     public async Task<bool> DeleteAsync(int id)

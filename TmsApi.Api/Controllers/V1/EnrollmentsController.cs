@@ -1,7 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs; // For EnrollmentRecord DTO
-using TmsApi.Infrastructure.Services; // For IEnrollmentService
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers.V1;
 

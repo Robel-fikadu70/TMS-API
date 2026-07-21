@@ -3,24 +3,11 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; // For ToListAsync, FirstOrDefaultAsync, Include, AnyAsync, etc.
 using TmsApi.Application.DTOs;
+using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities; // For the actual database entities
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Infrastructure.Services;
-
-public interface ICourseService
-{
-    Task<CourseResponseDto> CreateAsync(CreateCourseRequest course, CancellationToken ct);
-    Task<bool> DeleteAsync(string code);
-    Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
-    Task<bool> CodeExistsAsync(string code, CancellationToken ct);
-    Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(
-        PagedRequest request,
-        CancellationToken ct
-    );
-
-    Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
-}
 
 public class CourseService : ICourseService
 {
@@ -205,6 +192,23 @@ public class CourseService : ICourseService
             Page = request.Page,
             PageSize = request.PageSize,
         };
+    }
+
+    public async Task<CourseResponseDto?> GetByCodeAsync(string code, CancellationToken ct)
+    {
+        // Query the database, including Enrollments to calculate EnrolledCount
+        return await _context
+            .Courses.AsNoTracking()
+            .Include(c => c.Enrollments)
+            .Where(c => c.Code == code)
+            .Select(c => new CourseResponseDto(
+                c.Id,
+                c.Code,
+                c.Title,
+                c.Capacity,
+                c.Enrollments.Count
+            ))
+            .FirstOrDefaultAsync(ct);
     }
 
     public async Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>

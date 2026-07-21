@@ -2,7 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
-using TmsApi.Infrastructure.Services;
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers.V1;
 
