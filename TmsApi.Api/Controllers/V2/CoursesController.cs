@@ -2,13 +2,14 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers.V2;
 
 [ApiController]
 [Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("2.0")]
-public class CoursesController(TmsDbContext context) : ControllerBase
+public class CoursesController(TmsDbContext context, ICachedCourseService cachedCourseService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetCourses(
@@ -64,4 +65,15 @@ public class CoursesController(TmsDbContext context) : ControllerBase
             }
         );
     }
+
+    // 2. Add this NEW endpoint specifically for the Lab's "Popular Courses" scenario
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllCourses(CancellationToken ct)
+    {
+        // This calls our Cache -> which calls the DB only if empty
+        var courses = await cachedCourseService.GetAllCoursesAsync(ct);
+        return Ok(courses);
+    }
+
+
 }

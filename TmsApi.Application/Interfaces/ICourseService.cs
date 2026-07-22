@@ -1,4 +1,5 @@
 using TmsApi.Application.DTOs;
+using TmsApi.Domain.Entities;
 
 namespace TmsApi.Application.Interfaces;
 public interface ICourseService
@@ -14,4 +15,5 @@ public interface ICourseService
     Task<CourseResponseDto?> GetByCodeAsync(string code, CancellationToken ct);
 
     Task<IReadOnlyList<TopCourseSummaryRecord>> GetTopCoursesByEnrollmentAsync(int topCount);
+    Task<List<Course>> GetAllAsync(CancellationToken ct);
 }

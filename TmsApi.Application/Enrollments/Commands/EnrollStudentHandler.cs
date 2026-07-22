@@ -8,7 +8,8 @@ namespace TmsApi.Application.Enrollments.Commands;
 
 public class EnrollStudentHandler(
     IEnrollmentService enrollmentService,
-    ICourseService courseService
+    ICourseService courseService,
+    ICachedCourseService cachedCourseService
 ) : IRequestHandler<EnrollStudentCommand, Result<EnrollmentCreated, EnrollmentError>>
 {
     public async Task<Result<EnrollmentCreated, EnrollmentError>> Handle(
@@ -40,6 +41,7 @@ public class EnrollStudentHandler(
             new EnrollStudentRequest { StudentId = command.StudentId },
             ct
         );
+        await cachedCourseService.InvalidateCourseCacheAsync(ct); //kill the cache
         return Result<EnrollmentCreated, EnrollmentError>.Success(
             new EnrollmentCreated(enrollment.Id, enrollment.StudentId, course.Code)
         );
