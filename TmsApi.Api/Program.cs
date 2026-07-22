@@ -1,12 +1,16 @@
+using System.Threading.RateLimiting;
 using Asp.Versioning;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Scalar.AspNetCore;
 using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Api.Filters;
 using TmsApi.Api.Middlewares;
+using TmsApi.Api.RateLimiting;
 using TmsApi.Api.Security;
 using TmsApi.Application.Behaviors;
 using TmsApi.Application.Common;
@@ -14,7 +18,6 @@ using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Interfaces;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
-using Microsoft.Extensions.Caching.Hybrid;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +67,81 @@ builder.Services.AddControllers(options =>
 {
     // This applies the filter to EVERY controller in the project
     options.Filters.Add<AuditLogFilter>();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    // This is a "Global Limiter" - it applies to every single request
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var (partitionKey, tier) = ApiKeyResolver.Resolve(httpContext);
+
+        // Return a bucket based on the user's tier
+        return tier switch
+        {
+            ApiKeyTier.Paid => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: $"paid:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 200,
+                    TokensPerPeriod = 100,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    AutoReplenishment = true,
+                }
+            ),
+
+            ApiKeyTier.Free => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: $"free:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 30,
+                    TokensPerPeriod = 10,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    AutoReplenishment = true,
+                }
+            ),
+
+            _ => RateLimitPartition.GetTokenBucketLimiter( // Anonymous
+                partitionKey: $"anon:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 10,
+                    TokensPerPeriod = 5,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    AutoReplenishment = true,
+                }
+            ),
+        };
+    });
+
+    // Custom "Too Many Requests" response
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, ct) =>
+    {
+        var retryAfter = "10";
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var ts))
+            retryAfter = ((int)ts.TotalSeconds).ToString();
+
+        context.HttpContext.Response.Headers.RetryAfter = retryAfter;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                Title = "Rate limit exceeded",
+                Detail = $"Too many requests. Retry after {retryAfter} seconds.",
+                Status = 429,
+            },
+            ct
+        );
+    };
+    options.AddConcurrencyLimiter(
+        "transcripts",
+        opt =>
+        {
+            opt.PermitLimit = 5; // Only 5 transcripts can be processed AT THE SAME TIME
+            opt.QueueLimit = 10; // 10 more can wait in line
+            opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        }
+    );
 });
 
 // Exercise 2 Services & DI Validation
@@ -126,6 +204,9 @@ app.UseStatusCodePages(); //( Exercise 6 TODO 3) Turns 404s into JSON ProblemDet
 
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseRateLimiter();
+app.MapHealthChecks("/health/live").DisableRateLimiting();
+app.MapHealthChecks("/health/ready").DisableRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
