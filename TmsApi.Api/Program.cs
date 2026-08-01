@@ -189,6 +189,13 @@ builder.Services.AddHybridCache(options =>
         LocalCacheExpiration = TimeSpan.FromMinutes(2),
     };
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        "AllowAngular",
+        policy => policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()
+    );
+});
 
 var app = builder.Build();
 
@@ -205,11 +212,13 @@ app.UseStatusCodePages(); //( Exercise 6 TODO 3) Turns 404s into JSON ProblemDet
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseRateLimiter();
-app.MapHealthChecks("/health/live").DisableRateLimiting();
-app.MapHealthChecks("/health/ready").DisableRateLimiting();
+
+// app.MapHealthChecks("/health/live").DisableRateLimiting();
+// app.MapHealthChecks("/health/ready").DisableRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseCors("AllowAngular");
 
 // 3. Environment Toggle (Exercise 7)
 if (app.Environment.IsDevelopment())

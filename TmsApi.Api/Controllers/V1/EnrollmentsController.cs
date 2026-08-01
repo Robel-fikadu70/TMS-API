@@ -70,7 +70,7 @@ public class EnrollmentsController(
     )]
     public async Task<IActionResult> GetCourseEnrollments(
         int courseId,
-        PagedRequest request,
+        [FromQuery] PagedRequest request,
         CancellationToken ct
     )
     {

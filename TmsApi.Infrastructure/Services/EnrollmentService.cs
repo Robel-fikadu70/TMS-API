@@ -72,6 +72,7 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
+            .Where(e => e.CourseId == courseId)
             .ToListAsync(ct);
 
         return new PagedResponse<EnrollmentResponseDto>

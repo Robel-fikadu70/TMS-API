@@ -11,8 +11,7 @@ public class TranscriptsController : ControllerBase
     [EnableRateLimiting("transcripts")]
     public async Task<IActionResult> RequestTranscript([FromBody] object? _)
     {
-        // Simulate a long-running task (e.g., generating a PDF)
-        await Task.Delay(5000); 
-        return Ok(new { Message = "Transcript generated." });
+        
+        return Ok();
     }
 }
