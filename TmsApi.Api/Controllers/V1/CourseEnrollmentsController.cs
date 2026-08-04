@@ -11,7 +11,7 @@ namespace TmsApi.Api.Controllers.V1;
 [Tags("Enrollments")]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-public class EnrollmentsController(
+public class CourseEnrollmentsController(
     ICourseService _courseService,
     IStudentService _studentService,
     IEnrollmentService _enrollmentService
