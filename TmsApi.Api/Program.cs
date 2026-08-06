@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using FluentValidation;
@@ -16,8 +17,11 @@ using TmsApi.Application.Behaviors;
 using TmsApi.Application.Common;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Interfaces;
+using TmsApi.Application.Transcripts;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
+using TmsApi.Infrastructure.Transcripts;
+using TmsApi.Infrastructure.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -146,6 +150,12 @@ builder.Services.AddRateLimiter(options =>
 
 // Exercise 2 Services & DI Validation
 builder.Services.AddSingleton<EnrollmentWorker>();
+builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
+builder.Services.AddSingleton(
+    Channel.CreateBounded<TranscriptRequest>(
+        new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.Wait }
+    )
+);
 
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
@@ -153,7 +163,7 @@ builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
-
+builder.Services.AddHostedService<TranscriptWorker>();
 // Register TmsDbContext scoped for incoming HTTP requests
 
 builder.Services.AddDbContext<TmsDbContext>(options =>
@@ -169,14 +179,12 @@ builder.Host.UseDefaultServiceProvider(options =>
     options.ValidateOnBuild = true;
 });
 
-// Exercise 3: Options Pattern
 builder
     .Services.AddOptions<PaymentOptions>()
     .BindConfiguration("Payments")
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Session 1: Auth
 builder
     .Services.AddAuthentication("Training")
     .AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
