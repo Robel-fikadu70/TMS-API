@@ -22,6 +22,10 @@ using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
 using TmsApi.Infrastructure.Transcripts;
 using TmsApi.Infrastructure.Workers;
+using TmsApi.Api.Notifications;
+using TmsApi.Application.Notifications;
+using TmsApi.Api.Hubs;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -204,9 +208,11 @@ builder.Services.AddCors(options =>
         policy => policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()
     );
 });
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ITranscriptNotificationService, SignalRTranscriptNotificationService>();
 
 var app = builder.Build();
-
+app.MapHub<TmsHub>("/hubs/tms");
 // --- 2. MIDDLEWARE PIPELINE (ORDER MATTERS) ---
 
 // 1. Logging is the outer wrapper (Session 1B)
