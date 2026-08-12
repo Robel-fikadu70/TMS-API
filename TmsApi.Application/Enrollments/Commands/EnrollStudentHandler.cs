@@ -1,0 +1,49 @@
+using MediatR;
+using TmsApi.Application.Common;
+using TmsApi.Application.DTOs;
+using TmsApi.Application.Interfaces;
+using TmsApi.Domain.Entities;
+
+namespace TmsApi.Application.Enrollments.Commands;
+
+public class EnrollStudentHandler(
+    IEnrollmentService enrollmentService,
+    ICourseService courseService,
+    ICachedCourseService cachedCourseService
+) : IRequestHandler<EnrollStudentCommand, Result<EnrollmentCreated, EnrollmentError>>
+{
+    public async Task<Result<EnrollmentCreated, EnrollmentError>> Handle(
+        EnrollStudentCommand command,
+        CancellationToken ct
+    )
+    {
+        var course = await courseService.GetByCodeAsync(command.CourseCode, ct);
+        if (course is null)
+            return Result<EnrollmentCreated, EnrollmentError>.Failure(
+                EnrollmentError.CourseNotFound(command.CourseCode)
+            );
+        if (course.EnrollmentCount >= course.Capacity)
+            return Result<EnrollmentCreated, EnrollmentError>.Failure(
+                EnrollmentError.CourseFull(course.Title, course.Capacity)
+            );
+        if (await enrollmentService.ExistsAsync(command.StudentId, command.CourseCode, ct))
+            return Result<EnrollmentCreated, EnrollmentError>.Failure(
+                EnrollmentError.AlreadyEnrolled(command.StudentId, command.CourseCode)
+            );
+        var enrollment = new Enrollment
+        {
+            StudentId = command.StudentId,
+            CourseId = course.Id,
+            EnrolledAt = DateTime.UtcNow,
+        };
+        await enrollmentService.CreateAsync(
+            course.Id,
+            new EnrollStudentRequest { StudentId = command.StudentId },
+            ct
+        );
+        await cachedCourseService.InvalidateCourseCacheAsync(ct); //kill the cache
+        return Result<EnrollmentCreated, EnrollmentError>.Success(
+            new EnrollmentCreated(enrollment.Id, enrollment.StudentId, course.Code)
+        );
+    }
+}
