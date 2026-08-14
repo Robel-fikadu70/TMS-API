@@ -1,6 +1,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using TmsApi.Api.Hubs;
 using TmsApi.Application.DTOs;
+using TmsApi.Application.Hubs;
 using TmsApi.Application.Interfaces;
 
 namespace TmsApi.Api.Controllers.V1;
@@ -8,7 +11,7 @@ namespace TmsApi.Api.Controllers.V1;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/enrollments")]
-public class EnrollmentsController(IEnrollmentService enrollmentService) : ControllerBase
+public class EnrollmentsController(IEnrollmentService enrollmentService, IHubContext<TmsHub, ITmsHubClient> hubContext) : ControllerBase
 {
     private readonly IEnrollmentService _enrollmentService = enrollmentService;
 
@@ -43,6 +46,8 @@ public class EnrollmentsController(IEnrollmentService enrollmentService) : Contr
     )
     {
         var result = await _enrollmentService.UpdateEnrollmentStatus(id, request.Status, ct);
+
+        await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id, "Approved");
 
         return Ok(result);
     }

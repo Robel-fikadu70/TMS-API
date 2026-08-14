@@ -201,12 +201,18 @@ builder.Services.AddHybridCache(options =>
         LocalCacheExpiration = TimeSpan.FromMinutes(2),
     };
 });
+// Load allowed origins from appsettings.Development.json
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"];
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        "AllowAngular",
-        policy => policy.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()
-    );
+    options.AddPolicy("TmsClient", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+        .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
 });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITranscriptNotificationService, SignalRTranscriptNotificationService>();
@@ -230,9 +236,9 @@ app.UseRateLimiter();
 // app.MapHealthChecks("/health/live").DisableRateLimiting();
 // app.MapHealthChecks("/health/ready").DisableRateLimiting();
 
+app.UseCors("TmsClient");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AllowAngular");
 
 // 3. Environment Toggle (Exercise 7)
 if (app.Environment.IsDevelopment())
