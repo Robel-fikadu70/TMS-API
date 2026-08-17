@@ -206,7 +206,7 @@ public class StudentService(ILogger<StudentService> logger, TmsDbContext context
 
     public async Task<bool> StudentExists(int studentId, CancellationToken ct)
     {
-        var student = GetByIdAsync(studentId, ct);
+        var student = await GetByIdAsync(studentId, ct);
         if (student == null)
             return false;
 

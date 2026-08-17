@@ -25,6 +25,7 @@ using TmsApi.Infrastructure.Workers;
 using TmsApi.Api.Notifications;
 using TmsApi.Application.Notifications;
 using TmsApi.Api.Hubs;
+using Microsoft.AspNetCore.Antiforgery;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,6 +55,10 @@ builder.Services.AddOpenApi(
     }
 );
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-XSRF-TOKEN";
+});
 builder
     .Services.AddApiVersioning(options =>
     {
@@ -239,6 +244,24 @@ app.UseRateLimiter();
 app.UseCors("TmsClient");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true || context.Request.Cookies.ContainsKey("tms_auth"))
+    {
+        var antiforgery = context.RequestServices
+        .GetRequiredService<IAntiforgery>();
+        var tokens = antiforgery.GetAndStoreTokens(context);
+        context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!,
+        new CookieOptions
+        {
+            HttpOnly = false, // MUST be false so Angular JavaScript can read it!
+            Secure = !builder.Environment.IsDevelopment(),
+            SameSite = SameSiteMode.Strict
+        });
+    }
+    await next(context);
+});
 
 // 3. Environment Toggle (Exercise 7)
 if (app.Environment.IsDevelopment())

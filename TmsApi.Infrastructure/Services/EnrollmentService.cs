@@ -29,7 +29,12 @@ public class EnrollmentService(TmsDbContext _context, ILogger<EnrollmentService>
         _context.Enrollments.Add(enrollment);
         await _context.SaveChangesAsync(ct);
 
-        return (await GetByIdAsync(courseId, enrollment.Id, ct))!;
+        return new EnrollmentResponseDto(
+            enrollment.Id,
+            enrollment.CourseId,
+            enrollment.StudentId,
+            enrollment.EnrolledAt
+        );
     }
 
     public async Task<EnrollmentResponseDto?> GetByIdAsync(
