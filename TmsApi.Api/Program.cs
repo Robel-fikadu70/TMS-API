@@ -223,7 +223,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITranscriptNotificationService, SignalRTranscriptNotificationService>();
 
 var app = builder.Build();
-app.MapHub<TmsHub>("/hubs/tms");
+app.MapHub<TmsHub>("/hubs/tms").RequireCors("TmsClient");
 // --- 2. MIDDLEWARE PIPELINE (ORDER MATTERS) ---
 
 // 1. Logging is the outer wrapper (Session 1B)
@@ -232,7 +232,7 @@ app.UseMiddleware<V1DeprecationMiddleware>();
 
 // 2. Exception handling (Session 3 / Exercise 6)
 app.UseExceptionHandler();
-app.UseStatusCodePages(); //( Exercise 6 TODO 3) Turns 404s into JSON ProblemDetails
+app.UseStatusCodePages(); // Converts 4xx/5xx responses into standard ProblemDetails payloads
 
 app.UseHttpsRedirection();
 app.UseRouting();
