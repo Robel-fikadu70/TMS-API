@@ -26,6 +26,8 @@ using TmsApi.Api.Notifications;
 using TmsApi.Application.Notifications;
 using TmsApi.Api.Hubs;
 using Microsoft.AspNetCore.Antiforgery;
+using TmsApi.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -181,6 +183,18 @@ builder.Services.AddDbContext<TmsDbContext>(options =>
         .LogTo(Console.WriteLine, LogLevel.Information) // Log SQLto output window
         .EnableSensitiveDataLogging()
 ); // Show parameters in querylogs (dev only)
+builder.Services.AddIdentityCore<TmsUser>(options =>
+{
+    //Enterprise Password Policy
+    options.Password.RequiredLength = 12;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+    // Brute-Force Lockout Protection
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15); 
+    options.Lockout.AllowedForNewUsers = true;
+}).AddRoles<IdentityRole>().AddEntityFrameworkStores<TmsDbContext>();
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
