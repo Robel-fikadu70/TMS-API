@@ -31,6 +31,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using TmsApi.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -256,7 +258,8 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ITranscriptNotificationService, SignalRTranscriptNotificationService>();
-
+builder.Services.AddAuthorizationBuilder().AddPolicy("CanEditCourse", policy => policy.Requirements.Add(new CourseInstructorRequirement()));
+builder.Services.AddSingleton<IAuthorizationHandler, CourseInstructorHandler>();
 var app = builder.Build();
 app.MapHub<TmsHub>("/hubs/tms").RequireCors("TmsClient");
 // --- 2. MIDDLEWARE PIPELINE (ORDER MATTERS) ---
@@ -280,24 +283,32 @@ app.UseCors("TmsClient");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// app.Use(async (context, next) =>
+// {
+//     if (context.User.Identity?.IsAuthenticated == true || context.Request.Cookies.ContainsKey("tms_auth"))
+//     {
+//         var antiforgery = context.RequestServices
+//         .GetRequiredService<IAntiforgery>();
+//         var tokens = antiforgery.GetAndStoreTokens(context);
+//         context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!,
+//         new CookieOptions
+//         {
+//             HttpOnly = false, // MUST be false so Angular JavaScript can read it!
+//             Secure = !builder.Environment.IsDevelopment(),
+//             SameSite = SameSiteMode.Strict
+//         });
+//     }
+//     await next(context);
+// });
+// Security Response Headers Middleware
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity?.IsAuthenticated == true || context.Request.Cookies.ContainsKey("tms_auth"))
-    {
-        var antiforgery = context.RequestServices
-        .GetRequiredService<IAntiforgery>();
-        var tokens = antiforgery.GetAndStoreTokens(context);
-        context.Response.Cookies.Append("XSRF-TOKEN", tokens.RequestToken!,
-        new CookieOptions
-        {
-            HttpOnly = false, // MUST be false so Angular JavaScript can read it!
-            Secure = !builder.Environment.IsDevelopment(),
-            SameSite = SameSiteMode.Strict
-        });
-    }
-    await next(context);
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';");
+    await next();
 });
-
 // 3. Environment Toggle (Exercise 7)
 if (app.Environment.IsDevelopment())
 {
