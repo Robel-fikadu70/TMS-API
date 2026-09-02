@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,18 +12,21 @@ using TmsApi.Infrastructure.Services;
 namespace TmsApi.Api.Controllers.V1;
 
 [ApiController]
+[IgnoreAntiforgeryToken]
 [Route("api/v{version:apiVersion}/auth")]
 public class AuthController(
     UserManager<TmsUser> userManager,
     RoleManager<IdentityRole> roleManager,
     TmsDbContext context,
-    TokenService tokenService
+    TokenService tokenService,
+    IWebHostEnvironment env
 ) : ControllerBase
 {
     private readonly UserManager<TmsUser> _userManager = userManager;
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
     private readonly TmsDbContext _context = context;
     private readonly TokenService _tokenService = tokenService;
+    private readonly IWebHostEnvironment _env = env;
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -68,7 +73,7 @@ public class AuthController(
                 423,
                 new
                 {
-                    detail = "Account locked dueto multiple failed login attempts. Try again in 15 minutes.",
+                    detail = "Account locked due to multiple failed login attempts. Try again in 15 minutes.",
                 }
             );
         }
@@ -80,8 +85,9 @@ public class AuthController(
         }
         // Reset failed attempt counter on successful login
         await _userManager.ResetAccessFailedCountAsync(user);
+
         var roles = await _userManager.GetRolesAsync(user);
-        var accessToken = _tokenService.GenerateJwt(user, roles);
+        var jwt = _tokenService.GenerateJwt(user, roles);
         // Issue initial Refresh Token
         var refreshToken = new RefreshToken
         {
@@ -93,18 +99,26 @@ public class AuthController(
         };
         _context.RefreshTokens.Add(refreshToken);
         await _context.SaveChangesAsync();
-        return Ok(new { accessToken, refreshToken = refreshToken.Token });
+
+        //write both tokens as HttpOnly 
+        AppendAuthCookie(jwt, refreshToken.Token);
+        var primaryRole = roles.FirstOrDefault() ?? "Student";
+
+        return Ok(new UserProfileDto(user.Id, user.Email!, $"{user.FirstName} {user.LastName}", primaryRole));
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    public async Task<IActionResult> Refresh()
     {
+        if(!Request.Cookies.TryGetValue("tms_refresh", out var refreshTokenStr))
+            return Unauthorized(new{detail = "Refresh token cookie missing."});
+
         var storedToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt =>
-            rt.Token == request.RefreshToken
+            rt.Token == refreshTokenStr
         );
         if (storedToken == null)
         {
-            return Unauthorized(new { detail = "Invalid refreshtoken." });
+            return Unauthorized(new { detail = "Invalid refresh token." });
         }
         // Theft Detection: If an ALREADY-USED token is submitted, revoke ALL tokens for this user!
         if (storedToken.IsUsed)
@@ -117,11 +131,12 @@ public class AuthController(
                 t.IsRevoked = true;
             }
             await _context.SaveChangesAsync();
+            ClearAuthCookies();
             return Unauthorized(new { detail = "Token theft detected.All user sessions revoked." });
         }
         if (storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
         {
-            return Unauthorized(new { detail = "Refresh token expiredor revoked." });
+            return Unauthorized(new { detail = "Refresh token expired or revoked." });
         }
         // Mark current token as used
         storedToken.IsUsed = true;
@@ -136,9 +151,73 @@ public class AuthController(
         };
         _context.RefreshTokens.Add(newRefreshToken);
         await _context.SaveChangesAsync();
+
+        //Generate new JWT Access Token
         var user = await _userManager.FindByIdAsync(storedToken.UserId);
         var roles = await _userManager.GetRolesAsync(user!);
         var newAccessToken = _tokenService.GenerateJwt(user!, roles);
-        return Ok(new { accessToken = newAccessToken, refreshToken = newRefreshToken.Token });
+
+        AppendAuthCookie(newAccessToken, newRefreshToken.Token);
+
+        return Ok();
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = await _userManager.FindByIdAsync(userId!);
+        if(user == null) return Unauthorized();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var primaryRole = roles.FirstOrDefault() ?? "Student";
+
+        return Ok(new UserProfileDto(user.Id, user.Email!, $"{user.FirstName} {user.LastName}", primaryRole));
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout()
+    {
+        if(Request.Cookies.TryGetValue("tms_refresh", out var refreshTokesStr))
+        {
+            var storedToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == refreshTokesStr);
+            if(storedToken != null) storedToken.IsRevoked = true;
+            await _context.SaveChangesAsync();
+        }
+
+        ClearAuthCookies();
+        return Ok(new {message = "Logged out successFully."});
+    }
+
+    private void AppendAuthCookie(string jwt, string refreshToken)
+    {
+        var isDev = _env.IsDevelopment();
+
+        Response.Cookies.Append("tms_auth", jwt, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !isDev,
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddMinutes(1)
+        });
+
+        //Refresh token cookie
+        Response.Cookies.Append("tms_refresh", refreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !isDev,
+            SameSite = SameSiteMode.Strict,
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        });
+    }
+
+    private void ClearAuthCookies()
+    {
+        Response.Cookies.Delete("tms_auth");
+        Response.Cookies.Delete("tms_refresh");
+        Response.Cookies.Delete("XSRF-TOKEN");
+        
     }
 }

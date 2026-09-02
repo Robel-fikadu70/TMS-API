@@ -8,7 +8,7 @@ using TmsApi.Application.DTOs;
 
 namespace TmsApi.Api.Controllers.V2;
 
-[Authorize(Roles = "Instructor, Admin")]
+[Authorize(Roles = "Instructor, Admin, Student")]
 [ApiController]
 [Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("2.0")]
@@ -71,7 +71,6 @@ public class CoursesController(TmsDbContext context, ICachedCourseService cached
         );
     }
 
-    // 2. Add this NEW endpoint specifically for the Lab's "Popular Courses" scenario
     [HttpGet("all")]
     public async Task<IActionResult> GetAllCourses(CancellationToken ct)
     {
@@ -80,12 +79,15 @@ public class CoursesController(TmsDbContext context, ICachedCourseService cached
         return Ok(courses);
     }
 
-    [HttpPut("{id}")]
+    //Resource-Based Authorization endpoint
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Instructor, Admin")]
     public async Task<IActionResult> UpdateCourse(int id, [FromBody] UpdateCourseDto dto)
     {
         var course = await _context.Courses.FindAsync(id);
-        if(course == null) return NotFound();
+        if(course == null) return NotFound(new {detail = "Course not found."});
 
+        //trigger resource ownership policy check ("CanEditCourse)
         var authResult = await _authorizationService.AuthorizeAsync(User, course, "CanEditCourse");
         if (!authResult.Succeeded)
         {
